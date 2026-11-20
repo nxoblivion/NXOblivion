@@ -1,0 +1,49 @@
+--- a/plume_render_interface_types.h
++++ b/plume_render_interface_types.h
+@@ -55,6 +55,9 @@
+         }
+         bool operator!=(const struct RenderWindow& rhs) const { return !(*this == rhs); }
+     };
++#elif defined(__EMSCRIPTEN__)
++    // reOblivion web (2026-11-17): the page's canvas, by its CSS selector (WebGPU's surface source).
++    typedef const char *RenderWindow;
+ #elif defined(__APPLE__)
+     struct RenderWindow {
+         void* window;
+@@ -386,7 +389,9 @@
+         SPIRV,
+         METAL,
+         // banjo-nx (2026-10-17): plume_deko3d's GLSL for uam (Deko3DShaderBlob), the Switch's deko3d back end.
+-        DEKO3D
++        DEKO3D,
++        // reOblivion web (2026-11-17): WGSL source for plume_webgpu (the browser's WebGPU).
++        WGSL
+     };
+ 
+     enum class RenderRaytracingPipelineLibrarySymbolType {
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -84,7 +84,23 @@
+ # banjo-nx: UnleashedRecomp-NX built LSFG-VK frame generation into plume here; banjo-nx does not (plume_lsfg_stub.cpp).
+ 
+ # Create target
++# reOblivion web (2026-11-17, 2026-11-18): plume's WebGPU back end. plume_webgpu.cpp (the game's threads) records
++# plume's calls and posts them to webgpu_server.js on the page's thread, an Emscripten --pre-js that drives the
++# browser's navigator.gpu itself (no webgpu.h: the calls must come from the page's thread while the game runs on
++# workers). The Vulkan back end still compiles (volk finds no libvulkan in a browser and reports it).
++option(PLUME_WEBGPU "WebGPU back end (Emscripten)" OFF)
++set(PLUME_WEBGPU_DIR "${CMAKE_CURRENT_SOURCE_DIR}" CACHE PATH "Where plume_webgpu.cpp/.h and webgpu_server.js are (reOblivion: nx/web/plume)")
++if(PLUME_WEBGPU)
++    list(APPEND PLUME_SOURCES "${PLUME_WEBGPU_DIR}/plume_webgpu.cpp" "${PLUME_WEBGPU_DIR}/plume_webgpu.h")
++endif()
+ add_library(plume STATIC ${PLUME_SOURCES})
++if(PLUME_WEBGPU)
++    target_compile_definitions(plume PUBLIC PLUME_WEBGPU)
++    target_include_directories(plume PUBLIC "${PLUME_WEBGPU_DIR}")
++    target_link_options(plume PUBLIC "--pre-js=${PLUME_WEBGPU_DIR}/webgpu_server.js")
++    set_property(TARGET plume APPEND PROPERTY INTERFACE_LINK_DEPENDS "${PLUME_WEBGPU_DIR}/webgpu_server.js")
++    target_compile_features(plume PUBLIC cxx_std_20)
++endif()
+ 
+ # Include directories
+ target_include_directories(plume PUBLIC

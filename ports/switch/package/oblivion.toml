@@ -1,0 +1,70 @@
+# Oblivion (Switch) configuration - sdmc:/oblivion/oblivion.toml
+# Everything here is optional; the defaults are used for anything not listed.
+# Log file: sdmc:/oblivion/log.txt (flushed per line; send it back after a crash).
+
+# Face button layout. "xbox" = positional (Switch A/right = Xbox B, Switch B/bottom = Xbox A,
+# Switch X/top = Xbox Y, Switch Y/left = Xbox X). "nintendo" = by label (Switch A = Xbox A, ...).
+switch_button_layout = "xbox"
+
+# Debug: write the stereo PCM sent to the audio device to a WAV file (about 11 MB per minute). Off by default.
+# switch_audio_dump = "sdmc:/oblivion/audio.wav"
+
+# Performance debugging switches (all default to the fast setting shown; set to the opposite to compare):
+# gl_stream_uploads = true       # unsynchronised streaming rings for constants / shared memory / textures
+# gl_sync_resolve = false        # true = old synchronous resolve readback
+# gl_resolve_gpu_copy = true     # use GPU-side copies of resolved render targets as textures / front buffer
+# gl_resolve_max_age = 3         # swaps before a pending resolve is written back to guest memory
+# gl_state_cache = true          # skip redundant raster state GL calls
+# switch_fps_overlay = true
+
+# gl_gpu_resolve = true         # resolves run as a compute shader writing the shared memory store; guest memory written back lazily
+# gl_gpu_front = true           # front buffer detiled / endian swapped by a fragment shader reading the store (no CPU detile)
+# gl_cpu_frontbuffer = false    # true = force the old CPU detile + upload of the front buffer
+# gl_resolve_log = 12           # log budget for resolve configs and failed GPU-copy lookups (0 = off)
+
+# v0.1.10 diagnostics / tuning:
+# gl_gpu_timers = true          # GPU timestamp queries + frame fences; adds the "gpu timers" line to perf.txt
+# gl_swap_interval = 1          # 0 = present without waiting for vsync (try this if perf.txt shows a large "present wait beyond gpu done")
+# switch_guest_thread_host_stack_kb = 4096   # host stack per guest thread (was 16384; 16 MiB stacks exhausted the stack region)
+
+# v0.1.11 clocks / lazy resolves:
+# switch_clocks = true          # set clocks via clkrst/pcv (re-applied every 2 s). v0.1.10 and older used FastLoad boost = GPU at 76.8 MHz!
+# switch_cpu_mhz = 1785         # 0 = leave as is
+# switch_gpu_mhz = 0            # 0 = auto (460.8 handheld / 768 docked), -1 = leave as is
+# switch_mem_mhz = 1600         # 0 = leave as is
+# switch_fastload_boost = false # fallback to FastLoad boost when clkrst/pcv is unavailable (fast CPU, very slow GPU)
+# gl_lazy_resolve = true        # resolves with a GPU snapshot write the store only when something reads that memory
+# gl_present_snapshot = true    # present straight from the resolve snapshot (plain blit) before the store detile path
+# gl_gpu_timestamp_scale = 0    # ns per GPU timestamp tick; 0 = auto 625/384 (Switch GPU timer is 614.4 MHz, Mesa reports raw ticks)
+# gl_egl_depth_stencil = false  # true = old window surface config with depth 24 / stencil 8
+
+# v0.1.12 shader compile thread / program cache (Mesa needs 0.5-10 s to compile + link ONE program on the Switch;
+# before v0.1.12 this ran on the GPU thread and froze the first 3D frame for minutes):
+# gl_link_thread = true            # compile + link on a second (shared) GL context; draws skip until their program is ready
+# gl_compile_thread_priority = 44  # 0x2C, priority while a draw waits for the program
+# gl_warm_thread_priority = 46     # 0x2E, priority while pre-compiling programs from the cache
+# gl_program_cache = true          # remember every program (guest ucode) and pre-compile them at the next start
+# gl_program_cache_path = "sdmc:/oblivion/cache/gl_programs.bin"   # delete this file to start over
+# gl_program_warm_max = 800        # programs pre-compiled per start
+# gl_warm_min_headroom_mb = 512    # pre-compilation pauses when less malloc memory than this is left
+
+# v0.1.13 link-fix (v0.1.12 showed a black screen: compile-thread programs were never handed over to the GPU thread):
+# gl_link_fence = false            # (v0.1.14: default false) hand programs over with a GL fence
+# gl_link_fence_timeout_ms = 500   # use a compile-thread program anyway if its fence has not signalled after this long
+# gl_program_max_wait_ms = 2000    # a draw never waits longer: linked on the GPU thread (1 per frame); 0 = off.
+#                                  # v0.1.14: only while the compile threads cannot link (see gl_deadline_link_with_workers)
+# gl_link_thread_watchdog_ms = 3000  # no usable compile-thread program this long after the first wait -> link on the GPU thread
+# v0.1.14 shader-compile (v0.1.13 in-game showed no 3D for minutes: the compile thread's context never shared
+# programs (devkitPro Mesa ignores eglCreateContext's share_context) and the in-game shaders were 140-300 KB of GLSL
+# that Mesa needs minutes for; see GL_BACKEND_PLAN.md 7.6):
+# gl_egl_share_fix = true          # make the compile threads' shared contexts really share programs
+# gl_compile_threads = 2           # 1-3 compile threads (each with its own shared context)
+# gl_link_small_first = true       # link the smallest waiting program first (most of the scene appears early)
+# gl_deadline_link_with_workers = false  # true = also link on the GPU thread after gl_program_max_wait_ms (stalls frames)
+# gl_native_min_max = true         # plain min/max/clamp instead of NaN-ignoring isnan() chains (same on Maxwell)
+# gl_compact_texture_fetch = true  # branch-free texture swizzle/sign code (much smaller GLSL)
+# gl_cheap_mul_zero_rule = true    # Xenos 0*x=0 rule as 'NaN product -> 0' (smaller GLSL)
+# gl_gpu_resolve_compute = false   # true = old compute-shader resolve into the shared memory store (untested on hardware)
+# gl_nvc0_code_area_mb = 8         # grow nouveau's shader code area once at start (Mesa's resize when full is buggy); 0 = off
+# gl_snapshot_subrect = true       # textures that are part of a larger resolve use a GPU copy (no readback)
+# gl_mesa_env = ""                 # Mesa environment variables, e.g. "NV50_PROG_OPTIMIZE=1" (experiments)

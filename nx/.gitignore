@@ -1,0 +1,37 @@
+# nx/ (reNut port build tree). Game-derived and fetched content is never committed.
+
+# The extracted game (a junction made by tools/link_assets.ps1) and everything generated from it.
+app/assets
+app/generated/
+out/
+app/out/
+**/out/build/
+sdk/out/
+*.log
+
+# Third-party sources fetched by tools/fetch_deps.py (katamari-nx dcd7e290 + renderbag/dxc-bin).
+app/thirdparty/
+
+# The SDK fork keeps only the third-party files it changed; tools/fetch_thirdparty.py fetches the rest.
+sdk/thirdparty/*
+!sdk/thirdparty/CMakeLists.txt
+!sdk/thirdparty/FFmpeg/
+sdk/thirdparty/FFmpeg/*
+!sdk/thirdparty/FFmpeg/config_masseffect_wmv3.h
+!sdk/thirdparty/FFmpeg/config_switch_aarch64.h
+!sdk/thirdparty/FFmpeg/config_web_wasm64.h
+!sdk/thirdparty/renderdoc/
+sdk/thirdparty/renderdoc/*
+!sdk/thirdparty/renderdoc/renderdoc_app.h
+!sdk/thirdparty/FFmpeg/libavcodec/
+sdk/thirdparty/FFmpeg/libavcodec/*
+!sdk/thirdparty/FFmpeg/libavcodec/fft_template.c
+!sdk/thirdparty/FFmpeg/libavcodec/mdct_template.c
+!sdk/thirdparty/ffmpeg-overlay/
+sdk/thirdparty/ffmpeg-overlay/*
+!sdk/thirdparty/ffmpeg-overlay/codec_list.c
+
+# Shader dumps, caches and captures are game data.
+*.bin
+cache/
+__pycache__/

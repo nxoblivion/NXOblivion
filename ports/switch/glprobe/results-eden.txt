@@ -1,0 +1,472 @@
+glprobe starting (log sdmc:/glprobe.txt)
+default NWindow dimensions 1280x720
+EGL 1.4  vendor=Mesa Project  version=1.4
+EGL client APIs: OpenGL OpenGL_ES 
+EGL extensions: EGL_KHR_config_attribs EGL_KHR_create_context EGL_KHR_get_all_proc_addresses EGL_KHR_surfaceless_context 
+eglCreateContext core 4.6 -> fail (err 3009)
+eglCreateContext core 4.5 -> fail (err 3009)
+eglCreateContext core 4.4 -> fail (err 3009)
+eglCreateContext core 4.3 -> OK (err 0)
+GL_VENDOR   : nouveau
+GL_RENDERER : NV120
+GL_VERSION  : 4.3 (Core Profile) Mesa 20.1.0-rc3
+GLSL        : 4.30
+context     : GL 4.3, profile mask 0x1, flags 0x0
+=== 215 extensions ===
+  GL_AMD_conservative_depth
+  GL_AMD_draw_buffers_blend
+  GL_AMD_gpu_shader_int64
+  GL_AMD_multi_draw_indirect
+  GL_AMD_performance_monitor
+  GL_AMD_query_buffer_object
+  GL_AMD_seamless_cubemap_per_texture
+  GL_AMD_shader_trinary_minmax
+  GL_AMD_texture_texture4
+  GL_AMD_vertex_shader_layer
+  GL_AMD_vertex_shader_viewport_index
+  GL_ANGLE_texture_compression_dxt3
+  GL_ANGLE_texture_compression_dxt5
+  GL_ARB_ES2_compatibility
+  GL_ARB_ES3_1_compatibility
+  GL_ARB_ES3_2_compatibility
+  GL_ARB_ES3_compatibility
+  GL_ARB_arrays_of_arrays
+  GL_ARB_base_instance
+  GL_ARB_bindless_texture
+  GL_ARB_blend_func_extended
+  GL_ARB_buffer_storage
+  GL_ARB_clear_buffer_object
+  GL_ARB_clear_texture
+  GL_ARB_clip_control
+  GL_ARB_color_buffer_float
+  GL_ARB_compressed_texture_pixel_storage
+  GL_ARB_compute_shader
+  GL_ARB_compute_variable_group_size
+  GL_ARB_conditional_render_inverted
+  GL_ARB_conservative_depth
+  GL_ARB_copy_buffer
+  GL_ARB_copy_image
+  GL_ARB_cull_distance
+  GL_ARB_debug_output
+  GL_ARB_depth_buffer_float
+  GL_ARB_depth_clamp
+  GL_ARB_derivative_control
+  GL_ARB_direct_state_access
+  GL_ARB_draw_buffers
+  GL_ARB_draw_buffers_blend
+  GL_ARB_draw_elements_base_vertex
+  GL_ARB_draw_indirect
+  GL_ARB_draw_instanced
+  GL_ARB_enhanced_layouts
+  GL_ARB_explicit_attrib_location
+  GL_ARB_explicit_uniform_location
+  GL_ARB_fragment_coord_conventions
+  GL_ARB_fragment_layer_viewport
+  GL_ARB_fragment_shader
+  GL_ARB_framebuffer_no_attachments
+  GL_ARB_framebuffer_object
+  GL_ARB_framebuffer_sRGB
+  GL_ARB_get_program_binary
+  GL_ARB_get_texture_sub_image
+  GL_ARB_gpu_shader5
+  GL_ARB_gpu_shader_fp64
+  GL_ARB_gpu_shader_int64
+  GL_ARB_half_float_pixel
+  GL_ARB_half_float_vertex
+  GL_ARB_indirect_parameters
+  GL_ARB_instanced_arrays
+  GL_ARB_internalformat_query
+  GL_ARB_internalformat_query2
+  GL_ARB_invalidate_subdata
+  GL_ARB_map_buffer_alignment
+  GL_ARB_map_buffer_range
+  GL_ARB_multi_bind
+  GL_ARB_multi_draw_indirect
+  GL_ARB_occlusion_query2
+  GL_ARB_parallel_shader_compile
+  GL_ARB_pipeline_statistics_query
+  GL_ARB_pixel_buffer_object
+  GL_ARB_point_sprite
+  GL_ARB_polygon_offset_clamp
+  GL_ARB_post_depth_coverage
+  GL_ARB_program_interface_query
+  GL_ARB_provoking_vertex
+  GL_ARB_query_buffer_object
+  GL_ARB_robust_buffer_access_behavior
+  GL_ARB_robustness
+  GL_ARB_sample_locations
+  GL_ARB_sample_shading
+  GL_ARB_sampler_objects
+  GL_ARB_seamless_cube_map
+  GL_ARB_seamless_cubemap_per_texture
+  GL_ARB_separate_shader_objects
+  GL_ARB_shader_atomic_counter_ops
+  GL_ARB_shader_atomic_counters
+  GL_ARB_shader_ballot
+  GL_ARB_shader_bit_encoding
+  GL_ARB_shader_clock
+  GL_ARB_shader_draw_parameters
+  GL_ARB_shader_group_vote
+  GL_ARB_shader_image_load_store
+  GL_ARB_shader_image_size
+  GL_ARB_shader_objects
+  GL_ARB_shader_precision
+  GL_ARB_shader_storage_buffer_object
+  GL_ARB_shader_subroutine
+  GL_ARB_shader_texture_image_samples
+  GL_ARB_shader_texture_lod
+  GL_ARB_shader_viewport_layer_array
+  GL_ARB_shading_language_420pack
+  GL_ARB_shading_language_include
+  GL_ARB_shading_language_packing
+  GL_ARB_stencil_texturing
+  GL_ARB_sync
+  GL_ARB_tessellation_shader
+  GL_ARB_texture_barrier
+  GL_ARB_texture_buffer_object
+  GL_ARB_texture_buffer_object_rgb32
+  GL_ARB_texture_buffer_range
+  GL_ARB_texture_compression_bptc
+  GL_ARB_texture_compression_rgtc
+  GL_ARB_texture_cube_map_array
+  GL_ARB_texture_filter_anisotropic
+  GL_ARB_texture_float
+  GL_ARB_texture_gather
+  GL_ARB_texture_mirror_clamp_to_edge
+  GL_ARB_texture_multisample
+  GL_ARB_texture_non_power_of_two
+  GL_ARB_texture_query_levels
+  GL_ARB_texture_query_lod
+  GL_ARB_texture_rectangle
+  GL_ARB_texture_rg
+  GL_ARB_texture_rgb10_a2ui
+  GL_ARB_texture_stencil8
+  GL_ARB_texture_storage
+  GL_ARB_texture_storage_multisample
+  GL_ARB_texture_swizzle
+  GL_ARB_texture_view
+  GL_ARB_timer_query
+  GL_ARB_transform_feedback2
+  GL_ARB_transform_feedback3
+  GL_ARB_transform_feedback_instanced
+  GL_ARB_transform_feedback_overflow_query
+  GL_ARB_uniform_buffer_object
+  GL_ARB_vertex_array_bgra
+  GL_ARB_vertex_array_object
+  GL_ARB_vertex_attrib_64bit
+  GL_ARB_vertex_attrib_binding
+  GL_ARB_vertex_buffer_object
+  GL_ARB_vertex_shader
+  GL_ARB_vertex_type_10f_11f_11f_rev
+  GL_ARB_vertex_type_2_10_10_10_rev
+  GL_ARB_viewport_array
+  GL_ATI_blend_equation_separate
+  GL_ATI_texture_float
+  GL_ATI_texture_mirror_once
+  GL_EXT_EGL_image_storage
+  GL_EXT_EGL_sync
+  GL_EXT_abgr
+  GL_EXT_blend_equation_separate
+  GL_EXT_demote_to_helper_invocation
+  GL_EXT_depth_bounds_test
+  GL_EXT_draw_buffers2
+  GL_EXT_draw_instanced
+  GL_EXT_framebuffer_blit
+  GL_EXT_framebuffer_multisample
+  GL_EXT_framebuffer_multisample_blit_scaled
+  GL_EXT_framebuffer_object
+  GL_EXT_framebuffer_sRGB
+  GL_EXT_packed_depth_stencil
+  GL_EXT_packed_float
+  GL_EXT_pixel_buffer_object
+  GL_EXT_polygon_offset_clamp
+  GL_EXT_provoking_vertex
+  GL_EXT_shader_image_load_store
+  GL_EXT_shader_integer_mix
+  GL_EXT_texture_array
+  GL_EXT_texture_compression_dxt1
+  GL_EXT_texture_compression_rgtc
+  GL_EXT_texture_compression_s3tc
+  GL_EXT_texture_filter_anisotropic
+  GL_EXT_texture_integer
+  GL_EXT_texture_mirror_clamp
+  GL_EXT_texture_sRGB
+  GL_EXT_texture_sRGB_decode
+  GL_EXT_texture_shadow_lod
+  GL_EXT_texture_shared_exponent
+  GL_EXT_texture_snorm
+  GL_EXT_texture_swizzle
+  GL_EXT_timer_query
+  GL_EXT_transform_feedback
+  GL_EXT_vertex_array_bgra
+  GL_EXT_vertex_attrib_64bit
+  GL_EXT_window_rectangles
+  GL_IBM_multimode_draw_arrays
+  GL_KHR_blend_equation_advanced
+  GL_KHR_context_flush_control
+  GL_KHR_debug
+  GL_KHR_no_error
+  GL_KHR_parallel_shader_compile
+  GL_KHR_robust_buffer_access_behavior
+  GL_KHR_robustness
+  GL_KHR_texture_compression_astc_ldr
+  GL_KHR_texture_compression_astc_sliced_3d
+  GL_MESA_framebuffer_flip_y
+  GL_MESA_pack_invert
+  GL_MESA_shader_integer_functions
+  GL_MESA_texture_signed_rgba
+  GL_NV_conditional_render
+  GL_NV_conservative_raster
+  GL_NV_conservative_raster_dilate
+  GL_NV_copy_image
+  GL_NV_depth_clamp
+  GL_NV_fill_rectangle
+  GL_NV_packed_depth_stencil
+  GL_NV_sample_locations
+  GL_NV_texture_barrier
+  GL_NV_viewport_array2
+  GL_NV_viewport_swizzle
+  GL_OES_EGL_image
+  GL_S3_s3tc
+=== key extensions ===
+  GL_ARB_gl_spirv                              no
+  GL_ARB_spirv_extensions                      no
+  GL_ARB_compute_shader                        YES
+  GL_ARB_shader_storage_buffer_object          YES
+  GL_ARB_shader_image_load_store               YES
+  GL_ARB_buffer_storage                        YES
+  GL_ARB_texture_view                          YES
+  GL_ARB_fragment_shader_interlock             no
+  GL_NV_fragment_shader_interlock              no
+  GL_INTEL_fragment_shader_ordering            no
+  GL_ARB_clip_control                          YES
+  GL_ARB_sparse_buffer                         no
+  GL_ARB_sparse_texture                        no
+  GL_ARB_get_program_binary                    YES
+  GL_ARB_texture_storage_multisample           YES
+  GL_ARB_texture_cube_map_array                YES
+  GL_ARB_copy_image                            YES
+  GL_ARB_clear_texture                         YES
+  GL_ARB_get_texture_sub_image                 YES
+  GL_ARB_texture_barrier                       YES
+  GL_ARB_framebuffer_no_attachments            YES
+  GL_ARB_vertex_attrib_binding                 YES
+  GL_ARB_draw_indirect                         YES
+  GL_ARB_multi_draw_indirect                   YES
+  GL_ARB_indirect_parameters                   YES
+  GL_ARB_base_instance                         YES
+  GL_ARB_draw_elements_base_vertex             YES
+  GL_ARB_provoking_vertex                      YES
+  GL_ARB_depth_clamp                           YES
+  GL_ARB_depth_buffer_float                    YES
+  GL_ARB_shader_viewport_layer_array           YES
+  GL_ARB_cull_distance                         YES
+  GL_ARB_derivative_control                    YES
+  GL_ARB_gpu_shader5                           YES
+  GL_ARB_gpu_shader_fp64                       YES
+  GL_ARB_shader_bit_encoding                   YES
+  GL_ARB_shading_language_packing              YES
+  GL_ARB_shader_image_size                     YES
+  GL_ARB_shader_atomic_counters                YES
+  GL_ARB_shader_texture_lod                    YES
+  GL_ARB_sample_shading                        YES
+  GL_ARB_sync                                  YES
+  GL_ARB_direct_state_access                   YES
+  GL_ARB_enhanced_layouts                      YES
+  GL_ARB_explicit_uniform_location             YES
+  GL_ARB_texture_buffer_range                  YES
+  GL_ARB_polygon_offset_clamp                  YES
+  GL_ARB_conservative_depth                    YES
+  GL_ARB_texture_compression_bptc              YES
+  GL_ARB_texture_compression_rgtc              YES
+  GL_EXT_texture_compression_s3tc              YES
+  GL_EXT_texture_sRGB                          YES
+  GL_EXT_texture_filter_anisotropic            YES
+  GL_ARB_texture_filter_anisotropic            YES
+  GL_EXT_texture_swizzle                       YES
+  GL_ARB_texture_swizzle                       YES
+  GL_ARB_ES3_compatibility                     YES
+  GL_ARB_ES3_1_compatibility                   YES
+  GL_ARB_invalidate_subdata                    YES
+  GL_ARB_shader_stencil_export                 no
+  GL_ARB_stencil_texturing                     YES
+  GL_ARB_seamless_cube_map                     YES
+  GL_ARB_seamless_cubemap_per_texture          YES
+  GL_ARB_sampler_objects                       YES
+  GL_ARB_blend_func_extended                   YES
+  GL_ARB_viewport_array                        YES
+  GL_ARB_transform_feedback3                   YES
+  GL_ARB_pipeline_statistics_query             YES
+  GL_ARB_occlusion_query2                      YES
+  GL_ARB_query_buffer_object                   YES
+  GL_ARB_robust_buffer_access_behavior         YES
+  GL_KHR_debug                                 YES
+  GL_ARB_debug_output                          YES
+  GL_ARB_parallel_shader_compile               YES
+  GL_KHR_parallel_shader_compile               YES
+GL_NUM_SHADER_BINARY_FORMATS = 0
+GL_NUM_PROGRAM_BINARY_FORMATS = 0
+=== limits ===
+MAX_TEXTURE_SIZE                 16384
+MAX_3D_TEXTURE_SIZE              2048
+MAX_CUBE_MAP_TEXTURE_SIZE        16384
+MAX_ARRAY_TEXTURE_LAYERS         2048
+MAX_TEXTURE_BUFFER_SIZE          134217728
+MAX_RENDERBUFFER_SIZE            16384
+MAX_COLOR_ATTACHMENTS            8
+MAX_DRAW_BUFFERS                 8
+MAX_SAMPLES                      8
+MAX_TEXTURE_IMAGE_UNITS          32
+MAX_COMBINED_TEXTURE_IMAGE_UNITS 192
+MAX_IMAGE_UNITS                  192
+MAX_VERTEX_ATTRIBS               16
+MAX_UNIFORM_BLOCK_SIZE           65536
+MAX_UNIFORM_BUFFER_BINDINGS      84
+MAX_SHADER_STORAGE_BLOCK_SIZE    134217728
+MAX_SHADER_STORAGE_BUFFER_BINDINGS 80
+MAX_COMPUTE_SHADER_STORAGE_BLOCKS 16
+MAX_COMPUTE_UNIFORM_BLOCKS       14
+MAX_COMPUTE_SHARED_MEMORY_SIZE   98304
+MAX_COMPUTE_WORK_GROUP_INVOCATIONS 1024
+MAX_COMPUTE_WORK_GROUP_COUNT     2147483647 x 65535 x 65535
+MAX_COMPUTE_WORK_GROUP_SIZE      1024 x 1024 x 64
+SHADER_STORAGE_BUFFER_OFFSET_ALIGNMENT 16
+UNIFORM_BUFFER_OFFSET_ALIGNMENT  256
+MAX_VIEWPORTS                    16
+MAX_FRAMEBUFFER_WIDTH/HEIGHT     16384 / 16384
+MAX_VERTEX_SHADER_STORAGE_BLOCKS 16
+MAX_FRAGMENT_SHADER_STORAGE_BLOCKS 16
+MAX_VERTEX_UNIFORM_COMPONENTS    16384
+MAX_FRAGMENT_UNIFORM_COMPONENTS  16384
+MAX_TEXTURE_MAX_ANISOTROPY       16
+eglQuerySurface gave 0x0, using NWindow dims
+EGL surface 1280x720
+[PASS] triangle shaders compile
+[PASS] triangle program links
+center pixel (triangle) = 255,140,0,255 (expect ~255,140,0,255)
+[PASS] triangle drawn (center pixel readback)
+corner pixel (clear)     = 13,64,140,255 (expect ~13,64,140,255)
+[PASS] clear colour (corner readback)
+[PASS] no GL error after render
+[PASS] trivial compute shader compiles
+[PASS] trivial compute program links
+  mismatch at 0: deadbeef
+[FAIL] compute wrote SSBO and results verified (v[i]=i*3+1, 64 values)
+=== ARB_gl_spirv direct path ===
+GL_ARB_gl_spirv advertised: no
+glSpecializeShader pointer: non-null
+  host_depth_store_1xmsaa_cs: skipped (extension/entry point missing)
+  resolve_full_32bpp_cs: skipped (extension/entry point missing)
+  texture_load_32bpb_cs: skipped (extension/entry point missing)
+ARB_gl_spirv direct: 0/3 sampled blobs accepted
+=== SPIRV-Cross sweep: 97 SDK blobs -> GLSL 430 ===
+--- GLSL for texture_load_32bpb_cs (4492 bytes)
+| #version 430
+| #if defined(GL_EXT_control_flow_attributes)
+| #extension GL_EXT_control_flow_attributes : require
+| #define SPIRV_CROSS_FLATTEN [[flatten]]
+| #define SPIRV_CROSS_BRANCH [[dont_flatten]]
+| #define SPIRV_CROSS_UNROLL [[unroll]]
+| #define SPIRV_CROSS_LOOP [[dont_unroll]]
+| #else
+| #define SPIRV_CROSS_FLATTEN
+| #define SPIRV_CROSS_BRANCH
+| #define SPIRV_CROSS_UNROLL
+| #define SPIRV_CROSS_LOOP
+| #endif
+| layout(local_size_x = 4, local_size_y = 32, local_size_z = 1) in;
+| 
+| layout(binding = 8, std430) readonly buffer _1972_4218
+| {
+|     uvec4 _m0[];
+| } _4218;
+| 
+| layout(binding = 0, std430) writeonly buffer _1973_5134
+| {
+|     uvec4 _m0[];
+| } _5134;
+| 
+| layout(binding = 15, std140) uniform _1161_3305
+| {
+|     uint _m0;
+|     uint _m1;
+|     uint _m2;
+|     uint _m3;
+|     uvec3 _m4;
+|     uint _m5;
+|     uint _m6;
+|     uint _m7;
+| } _3305;
+| 
+| void main()
+| {
+|     do
+|     {
+|         bool _17270 = (_3305._m0 & 1u) != 0u;
+|         uint _25058 = (_3305._m0 >> 2u) & 3u;
+|         uvec3 _21387 = gl_GlobalInvocationID << uvec3(3u, 0u, 0u);
+|         uvec2 _17136 = _21387.xy;
+|         SPIRV_CROSS_BRANCH
+|         if (any(greaterThanEqual(_17136, _3305._m4.xy)))
+|         {
+|             break;
+|         }
+|         ivec3 _23478 = ivec3(_21387);
+|         int _23531 = _23478.x;
+|         int _22810 = _23531 * 4;
+|         int _6362 = _23478.z;
+|         int _17598 = _23478.y;
+|         uint _21685 = (uint(_22810 + (((_6362 * int(_3305._m4.y)) + _17598) * int(_3305._m6))) + _3305._m5) >> 4u;
+|         int _10814;
+|         SPIRV_CROSS_BRANCH
+|         if (_17270)
+|         {
+|             int _10540;
+|             SPIRV_CROSS_BRANCH
+|             if ((_3305._m0 & 2u) != 0u)
+|             {
+|                 int _24606 = _6362 >> 2;
+|                 int _24035 = (((_23531 & 7) + ((_17598 & 6) << 2)) << int(8u)) >> 6;
+|                 int _23052 = ((_17598 >> 3) + _24606) & 1;
+|                 int _15435 = _23052 + ((((_23531 >> 3) + (_23052 << 1)) & 3) << 1);
+|                 int _16728 = (((((((((_23531 >> 5) + (((_17598 >> 4) + (_24606 * int(_3305._m3 >> 4u))) * int(_3305._m2 >> 5u))) << int(8u)) & 268435455) << 1) + (_24035 & (-16))) << 1) + (_24035 & 15)) + ((_6362 & 3) << int(8u))) + ((_17598 & 1) << 4);
+|                 _10540 = ((((((((_15435 & 1) << 3) + ((_16728 >> 6) & 7)) << 3) + (_15435 & (-2))) << 2) + (_16728 & (-512))) << 3) + (_16728 & 63);
+|             }
+|             else
+|             {
+|                 ivec2 _6573 = ivec2(_17136);
+|                 int _17090 = _6573.x;
+|                 int _10055 = _6573.y;
+|                 int _6375 = ((_17090 & 7) + ((_10055 & 14) << 2)) << int(2u);
+|                 int _16729 = (((((_17090 >> 5) + ((_10055 >> 5) * int(_3305._m2 >> 5u))) << int(9u)) + ((_6375 & (-16)) << 1)) + (_6375 & 15)) + ((_10055 & 1) << 4);
+|                 _10540 = (((((_16729 & (-512)) << 3) + ((_10055 & 16) << 7)) + ((_16729 & 448) << 2)) + (((((_10055 & 8) >> 2) + (_17090 >> 3)) & 3) << 6)) + (_16729 & 63);
+|             }
+| ... (truncated)
+--- end GLSL for texture_load_32bpb_cs
+SPIRV-Cross: 97/97 blobs cross-compiled, 97/97 GL-compiled, 91 compute programs linked
+[PASS] SDK texture_load_32bpb_cs: SPIR-V -> GLSL (SPIRV-Cross) -> glCompileShader -> glLinkProgram
+=== SUMMARY: 1 check failure(s) ===
+Drawing the test frame until the process is killed (or + pressed)...
+rendered 120 frames, 1.94 s
+
+
+=== Eden log excerpt (GPU/nvdrv/EGL related) ===
+[   0.516676] Render.Vulkan <Warning> video_core/vulkan_common/vulkan_device.cpp:1142:GetSuitability: Disabling broken VK_EXT_vertex_input_dynamic_state
+[   0.516769] Render.Vulkan <Warning> video_core/vulkan_common/vulkan_device.cpp:550:Device: Ampere and newer have broken float16 math
+[   3.215410] Debug <Critical> shader_recompiler/frontend/maxwell/decode.cpp:49:operator(): D:/a/Workflow/Workflow/src/shader_recompiler/frontend/maxwell/decode.cpp: assert Invalid insn 0x0000000000020461
+[   3.215560] Debug <Critical> shader_recompiler/frontend/maxwell/decode.cpp:49:operator(): D:/a/Workflow/Workflow/src/shader_recompiler/frontend/maxwell/decode.cpp: assert Invalid insn 0x0000000000000000
+[   3.215643] Debug <Critical> shader_recompiler/frontend/maxwell/decode.cpp:49:operator(): D:/a/Workflow/Workflow/src/shader_recompiler/frontend/maxwell/decode.cpp: assert Invalid insn 0x0000000000000000
+[   3.215739] Debug <Critical> shader_recompiler/frontend/maxwell/decode.cpp:49:operator(): D:/a/Workflow/Workflow/src/shader_recompiler/frontend/maxwell/decode.cpp: assert Invalid insn 0x0000000000000000
+[   3.215845] Debug <Critical> shader_recompiler/frontend/maxwell/decode.cpp:49:operator(): D:/a/Workflow/Workflow/src/shader_recompiler/frontend/maxwell/decode.cpp: assert Invalid insn 0x0000000080000000
+[   3.215927] Debug <Critical> shader_recompiler/frontend/maxwell/decode.cpp:49:operator(): D:/a/Workflow/Workflow/src/shader_recompiler/frontend/maxwell/decode.cpp: assert Invalid insn 0x0000000000000000
+[   3.216002] Debug <Critical> shader_recompiler/frontend/maxwell/decode.cpp:49:operator(): D:/a/Workflow/Workflow/src/shader_recompiler/frontend/maxwell/decode.cpp: assert Invalid insn 0x0000000000000000
+[   3.216080] Debug <Critical> shader_recompiler/frontend/maxwell/decode.cpp:49:operator(): D:/a/Workflow/Workflow/src/shader_recompiler/frontend/maxwell/decode.cpp: assert Invalid insn 0x0000000000000000
+[   3.217028] Debug <Critical> shader_recompiler/frontend/maxwell/decode.cpp:49:operator(): D:/a/Workflow/Workflow/src/shader_recompiler/frontend/maxwell/decode.cpp: assert Invalid insn 0x0000000000025462
+[   3.217113] Debug <Critical> shader_recompiler/frontend/maxwell/decode.cpp:49:operator(): D:/a/Workflow/Workflow/src/shader_recompiler/frontend/maxwell/decode.cpp: assert Invalid insn 0x0000000000000000
+[   3.217190] Debug <Critical> shader_recompiler/frontend/maxwell/decode.cpp:49:operator(): D:/a/Workflow/Workflow/src/shader_recompiler/frontend/maxwell/decode.cpp: assert Invalid insn 0x0000000000000000
+[   3.217288] Debug <Critical> shader_recompiler/frontend/maxwell/decode.cpp:49:operator(): D:/a/Workflow/Workflow/src/shader_recompiler/frontend/maxwell/decode.cpp: assert Invalid insn 0x0000000000000000
+[   3.217375] Debug <Critical> shader_recompiler/frontend/maxwell/decode.cpp:49:operator(): D:/a/Workflow/Workflow/src/shader_recompiler/frontend/maxwell/decode.cpp: assert Invalid insn 0x0000000000000000
+[   3.217462] Debug <Critical> shader_recompiler/frontend/maxwell/decode.cpp:49:operator(): D:/a/Workflow/Workflow/src/shader_recompiler/frontend/maxwell/decode.cpp: assert Invalid insn 0x0000000000000000
+[   3.217545] Debug <Critical> shader_recompiler/frontend/maxwell/decode.cpp:49:operator(): D:/a/Workflow/Workflow/src/shader_recompiler/frontend/maxwell/decode.cpp: assert Invalid insn 0x0000000000000000
+[   3.217638] Debug <Critical> shader_recompiler/frontend/maxwell/decode.cpp:49:operator(): D:/a/Workflow/Workflow/src/shader_recompiler/frontend/maxwell/decode.cpp: assert Invalid insn 0x000000000000000f
+[   3.309294] Render.Vulkan <Error> video_core/renderer_vulkan/vk_pipeline_cache.cpp:924:CreateComputePipeline: Instruction ST is not implemented is not implemented

@@ -1,0 +1,296 @@
+# nx/app: copied from the repository root oblivion_manifest.toml (2026-11-03, renut-port bootstrap), every function
+# entry kept. Paths are relative to nx/app: assets is a junction to the extracted game (nx/tools/link_assets.ps1).
+[project]
+name = "oblivion"
+sdk_version = "0.10.0"
+game_root = "assets"
+
+[entrypoint]
+file_path = "assets/default.xex"
+out_directory_path = "generated/default"
+includes = []
+
+# --- Codegen options (2026-11-10): the SDK fork's optimised keys, as katamari-nx / banjo-nx use them. Until now every
+# guest register lived in the PPCContext in memory and every function ran the __savegprlr / __restgprlr helpers; on the
+# Switch's A57 that is most of the game thread's time (docs/renut-port.md, "The game thread"). Audited for this game
+# with nx/tools/codegen_audit (katamari-nx's tools; run them again after any change here or to the function list):
+#   python nx/tools/codegen_audit/non_argument_audit.py <generated WITHOUT the keys> --noreturn=828CEE20,828E47F0,828758D8,828F2B58
+#   python nx/tools/codegen_audit/read_before_write.py  <generated WITH the keys>   --noreturn=... [--volatile]
+#   python nx/tools/codegen_audit/non_argument_audit.py <generated WITH the keys>   --with-option --noreturn=...
+# No return: longjmp 0x828CEE20, sub_828E47F0 (ends in XamLoaderLaunchTitle), sub_828758D8 and sub_828F2B58 (error
+# functions of a decoder and of the D3DX shader compiler: the code after their calls reads registers nobody set).
+# Keys that change how the C++ is written, not what the guest sees:
+cr_as_local = true
+ctr_as_local = true
+xer_as_local = true
+reserved_as_local = true
+dform_disp_split = true
+fctiwz_inline = true
+fcti_inline = true
+dcbt_prefetch = true
+rotate_word_shifts = true
+fp_compares_modeless = true
+fp_mode_lookahead = true
+fp_mode_lookahead_past_branch = true
+fp_copy_pairs = true
+fp_copy_forwarding = true
+div_inline = true
+fp_moves_modeless = true
+# skip_msr: mfmsr / mtmsrd ("interrupts off") emit nothing. They took the runtime's global recursive mutex twice and
+# three full memory barriers around every one. All 1,879 such regions of this game hold one lwarx / stwcx. pair and
+# register arithmetic (1,853 increments or decrements, 13 compare-exchanges, 8 adds, 5 exchanges: the XDK's inline
+# Interlocked functions, Gamebryo's reference counts), which the generated compare-and-swap makes atomic by itself.
+skip_msr = true
+# plain_guest_accesses (this tree's generator, after the upstream ports' pch_no_volatile.py + loop_barriers.py): guest
+# loads and stores through plain pointers instead of volatile ones (memory-mapped I/O keeps volatile), so the compiler
+# keeps values in registers, pairs accesses and drops repeated loads; every loop header of the generated code (27,862
+# of its 185,409 labels) gets a compiler barrier over the guest's memory, so a loop that waits for another thread to
+# change a word reads it again on every turn. The Switch build takes no memory fault in play (rex_profile.log:
+# "faults/s ... 0"), so nothing depends on the shape of the load and store instructions.
+plain_guest_accesses = true
+# The register "diet": r14-r31, f14-f31, v14-v31 as C++ locals (no save / restore helpers, no guest-stack traffic for
+# them); no `ctx.lr = <return address>` before every call; r0, r2, r11, r12, f0, v32-v63 as locals.
+#   - read_before_write.py on code with the keys: setjmp and its 7 callers (the generator's own environment save), one
+#     unreachable one-instruction fragment (sub_828E1EE4); no split piece reads a register of its parent's. The
+#     exception funclets (`addi r31,r12,-N`) keep their registers in the context by themselves, their callers copy them.
+#   - v64-v127 stay in the context in every function: sub_8271F3D0 reads v126 and sub_827551D0 v123-v125 without ever
+#     writing them (a value of their callers'), as katamari-nx found for its movie codec.
+#   - non_argument_audit.py: ENTRY = the 215 save / restore helpers (kept by name) and the 133 functions below (132
+#     exception funclets and stack helpers taking r12, and sub_828DE5F8, which reads the r11 its __finally funclet
+#     sub_828DE6C0 sets); with the keys: HANDOVER only sub_82487AA0 -> sub_824C59F0's saved environment (not a use).
+non_volatile_as_local = true
+non_volatile_as_local_keep = ["v64-v127"]
+elide_lr_stores = true
+non_argument_as_local = true
+# setjmp saves f14-f31, r13-r31, LR, CR and r1 into the buffer at r3 (`stfd f14,0(r3)` ... `std r13,152(r3)`) after a
+# check of a hook word; longjmp reloads them (`mr r7,r3` ... `lfd f14,0(r7)`). 7 functions call setjmp, 20 sites longjmp.
+setjmp_address = 0x828CF200
+longjmp_address = 0x828CEE20
+non_argument_as_local_keep = [
+    0x82881818, 0x828818C8, 0x82882508, 0x828825B8, 0x828828A8, 0x82882958, 0x82883520, 0x828835D0, 0x82883704, 0x828837B4,
+    0x828838E8, 0x82883998, 0x82883AC8, 0x82883B78, 0x82883CA8, 0x82883D58, 0x82883EEC, 0x82883F9C, 0x828840D0, 0x82884180,
+    0x828842E0, 0x82884390, 0x828844F0, 0x828845A0, 0x82884780, 0x82884830, 0x8288492C, 0x828849DC, 0x82884B20, 0x82884BD0,
+    0x82884D2C, 0x82884DDC, 0x82884F68, 0x82885018, 0x82885118, 0x828851C8, 0x8288536C, 0x8288541C, 0x828856DC, 0x8288578C,
+    0x8288590C, 0x828859BC, 0x82886608, 0x828866B8, 0x828869A4, 0x82886A54, 0x82886B50, 0x82886C00, 0x82887258, 0x82887308,
+    0x828875C4, 0x82887674, 0x8288779C, 0x8288784C, 0x82887E4C, 0x82887EFC, 0x828881D4, 0x8288827C, 0x828C739C, 0x828C745C,
+    0x828C780C, 0x828C79C8, 0x828C7A5C, 0x828C7A84, 0x828C7BBC, 0x828C7BE4, 0x828C8954, 0x828C8974, 0x828C9954, 0x828C9974,
+    0x828C9AF0, 0x828C9B10, 0x828C9D24, 0x828C9D44, 0x828CB3FC, 0x828CB41C, 0x828CB5E4, 0x828CB604, 0x828CE4B0, 0x828CF4A4,
+    0x828CF568, 0x828CF804, 0x828D0104, 0x828D0124, 0x828D0434, 0x828D0454, 0x828D0810, 0x828D0830, 0x828D12C8, 0x828D12F4,
+    0x828D13FC, 0x828D141C, 0x828D18D0, 0x828D22B4, 0x828D28FC, 0x828D291C, 0x828D2B84, 0x828D2BA4, 0x828D2E64, 0x828D2E84,
+    0x828D3028, 0x828D3330, 0x828D3350, 0x828D5210, 0x828D5230, 0x828D6EFC, 0x828D6F1C, 0x828DA554, 0x828DA574, 0x828DA94C,
+    0x828DA96C, 0x828DAD20, 0x828DAD4C, 0x828DB350, 0x828DB370, 0x828DC1E0, 0x828DC200, 0x828DCB24, 0x828DDADC, 0x828DDAFC,
+    0x828DDE3C, 0x828DDE5C, 0x828DDFDC, 0x828DDFFC, 0x828DE5F8, 0x828E0CE4, 0x828E0D04, 0x828E7B60, 0x828E7B88, 0x828E7E44,
+    0x828E7E6C, 0x828E86DC, 0x828E86FC
+]
+
+[entrypoint.functions]
+0x82578048 = {}  # tail-call target from 0x8257755C
+0x825781C0 = {}  # tail-call target from 0x8257E2C4
+0x82824C98 = {}  # tail-call target from 0x82824D9C
+0x82A2EC90 = {}  # CRT static initializer (pointer in .data table at 0x82A51078)
+0x8263B328 = {}  # function pointer in data at 0x82A66150
+0x82712378 = {}  # function pointer in data at 0x82A6724C
+0x82723B18 = {}  # function pointer in data at 0x82A67354
+# Undiscovered code found by tools/find_gaps.py
+0x821100B0 = {}  # undiscovered code gap 821100B0-821100B8
+0x82113360 = {}  # undiscovered code gap 82113360-82113368
+0x82149DF0 = {}  # undiscovered code gap 82149DF0-82149E00
+0x82157510 = {}  # undiscovered code gap 82157510-82157518
+0x82187900 = {}  # undiscovered code gap 82187900-82187908
+0x821AA2DC = {}  # undiscovered code gap 821AA2DC-821AA2E0
+0x82271B04 = {}  # undiscovered code gap 82271B04-82271B08
+0x822AA6B4 = {}  # undiscovered code gap 822AA6B4-822AA6B8
+0x822AA6FC = {}  # undiscovered code gap 822AA6FC-822AA700
+0x822AA744 = {}  # undiscovered code gap 822AA744-822AA748
+0x822AA78C = {}  # undiscovered code gap 822AA78C-822AA790
+0x822BA1AC = {}  # undiscovered code gap 822BA1AC-822BA1B0
+0x822BAEF8 = {}  # undiscovered code gap 822BAEF8-822BAF00
+0x822C15E8 = {}  # undiscovered code gap 822C15E8-822C15F0
+0x822C1808 = {}  # undiscovered code gap 822C1808-822C1810
+0x822C1DC4 = {}  # undiscovered code gap 822C1DC4-822C1DC8
+0x822C1E10 = {}  # undiscovered code gap 822C1E10-822C1E18
+0x822CC6E0 = {}  # undiscovered code gap 822CC6E0-822CC6E8
+0x822CC778 = {}  # undiscovered code gap 822CC778-822CC780
+0x823268C0 = {}  # undiscovered code gap 823268C0-823268C8
+0x8233F770 = {}  # undiscovered code gap 8233F770-8233F790
+0x8237CB20 = {}  # undiscovered code gap 8237CB20-8237CB28
+0x8237CB64 = {}  # undiscovered code gap 8237CB64-8237CB68
+0x8237CEFC = {}  # undiscovered code gap 8237CEFC-8237CF00
+0x8237CF44 = {}  # undiscovered code gap 8237CF44-8237CF48
+0x823953A4 = {}  # undiscovered code gap 823953A4-823953A8
+0x823B7D14 = {}  # undiscovered code gap 823B7D14-823B7D18
+0x823F0118 = {}  # undiscovered code gap 823F0118-823F0120
+0x824042D0 = {}  # undiscovered code gap 824042D0-824042D8
+0x8240EA50 = {}  # undiscovered code gap 8240EA50-8240EA58
+0x82466BC4 = {}  # undiscovered code gap 82466BC4-82466BC8
+0x824C23BC = {}  # undiscovered code gap 824C23BC-824C23C0
+0x824C5730 = {}  # undiscovered code gap 824C5730-824C5748
+0x824D99F0 = {}  # undiscovered code gap 824D99F0-824D9A00
+0x824D9CB0 = {}  # undiscovered code gap 824D9CB0-824D9D50
+0x824DA158 = {}  # undiscovered code gap 824DA158-824DA218
+0x82501BBC = {}  # undiscovered code gap 82501BBC-82501BC0
+0x8256ECD8 = {}  # undiscovered code gap 8256ECD8-8256ED30
+0x825703BC = {}  # undiscovered code gap 825703BC-825703C0
+0x82578038 = {}  # undiscovered code gap 82578038-82578040
+0x8257EAE8 = {}  # undiscovered code gap 8257EAE8-8257EB00
+0x8257EB20 = {}  # undiscovered code gap 8257EB20-8257EB30
+0x8257EB38 = {}  # undiscovered code gap 8257EB38-8257EB40
+0x8257EB48 = {}  # undiscovered code gap 8257EB48-8257EB50
+0x825806B0 = {}  # undiscovered code gap 825806B0-825806C0
+0x82594BB0 = {}  # undiscovered code gap 82594BB0-82594BB8
+0x82594D28 = {}  # undiscovered code gap 82594D28-82594D30
+0x82597600 = {}  # undiscovered code gap 82597600-82597608
+0x82597630 = {}  # undiscovered code gap 82597630-82597638
+0x82597660 = {}  # undiscovered code gap 82597660-82597668
+0x82597690 = {}  # undiscovered code gap 82597690-82597698
+0x825976C0 = {}  # undiscovered code gap 825976C0-825976C8
+0x825976F0 = {}  # undiscovered code gap 825976F0-825976F8
+0x825C2328 = {}  # undiscovered code gap 825C2328-825C2330
+0x825C2370 = {}  # undiscovered code gap 825C2370-825C2378
+0x825CB0B0 = {}  # undiscovered code gap 825CB0B0-825CB0B8
+0x825D1D78 = {}  # undiscovered code gap 825D1D78-825D1D80
+0x825D1DA0 = {}  # undiscovered code gap 825D1DA0-825D1DA8
+0x825F91A0 = {}  # undiscovered code gap 825F91A0-825F91A8
+0x82611D0C = {}  # undiscovered code gap 82611D0C-82611D10
+0x82618A5C = {}  # undiscovered code gap 82618A5C-82618A60
+0x8263C604 = {}  # undiscovered code gap 8263C604-8263C608
+0x8263C804 = {}  # undiscovered code gap 8263C804-8263C808
+0x826483A4 = {}  # undiscovered code gap 826483A4-826483A8
+0x8264BCD8 = {}  # undiscovered code gap 8264BCD8-8264BCE0
+0x82657530 = {}  # undiscovered code gap 82657530-82657538
+0x82658B98 = {}  # undiscovered code gap 82658B98-82658BB0
+0x826601E4 = {}  # undiscovered code gap 826601E4-826601E8
+0x82660910 = {}  # undiscovered code gap 82660910-82660948
+0x8267393C = {}  # undiscovered code gap 8267393C-82673940
+0x8267397C = {}  # undiscovered code gap 8267397C-82673980
+0x8268E228 = {}  # undiscovered code gap 8268E228-8268E230
+0x8269103C = {}  # undiscovered code gap 8269103C-82691040
+0x826A14DC = {}  # undiscovered code gap 826A14DC-826A14E0
+0x826B43F0 = {}  # undiscovered code gap 826B43F0-826B43F8
+0x826C6638 = {}  # undiscovered code gap 826C6638-826C6640
+0x826CACFC = {}  # undiscovered code gap 826CACFC-826CAD00
+0x826CDD74 = {}  # undiscovered code gap 826CDD74-826CDD78
+0x826DFC68 = {}  # undiscovered code gap 826DFC68-826DFC78
+0x826F7028 = {}  # undiscovered code gap 826F7028-826F7030
+0x826F7050 = {}  # undiscovered code gap 826F7050-826F7058
+0x826F7078 = {}  # undiscovered code gap 826F7078-826F7080
+0x82702580 = {}  # undiscovered code gap 82702580-82702588
+0x827025A8 = {}  # undiscovered code gap 827025A8-827025B0
+0x827025D0 = {}  # undiscovered code gap 827025D0-827025D8
+0x82719D40 = {}  # undiscovered code gap 82719D40-82719D48
+0x82722850 = {}  # undiscovered code gap 82722850-82722858
+0x82724890 = {}  # undiscovered code gap 82724890-82724908
+0x8278A6C8 = {}  # undiscovered code gap 8278A6C8-8278A6D0
+0x82791670 = {}  # undiscovered code gap 82791670-82791678
+0x827C660C = {}  # undiscovered code gap 827C660C-827C6610
+0x827C9B64 = {}  # undiscovered code gap 827C9B64-827C9B68
+0x827C9BC0 = {}  # undiscovered code gap 827C9BC0-827C9BC8
+0x828CE4B0 = {}  # undiscovered code gap 828CE4A8-828CE554
+0x828CF4A4 = {}  # undiscovered code gap 828CF4A4-828CF800
+0x828E4CA0 = {}  # undiscovered code gap 828E4C9C-828E4D0C
+0x828F8900 = {}  # undiscovered code gap 828F8900-828F8908
+0x828F8938 = {}  # undiscovered code gap 828F8938-828F8940
+0x828FF4AC = {}  # undiscovered code gap 828FF4AC-828FF4B0
+0x8290D1C8 = {}  # undiscovered code gap 8290D1C8-8290D1E8
+0x8292C0D8 = {}  # undiscovered code gap 8292C0D8-8292C108
+0x8296E938 = {}  # undiscovered code gap 8296E938-8296E988
+0x8299ECC8 = {}  # undiscovered code gap 8299ECC8-8299ECE0
+0x82A3A208 = {}  # undiscovered code gap 82A3A208-82A3A210
+0x82A3A270 = {}  # undiscovered code gap 82A3A270-82A3A278
+0x82A3A2D0 = {}  # undiscovered code gap 82A3A2D0-82A3A2D8
+0x82A3A330 = {}  # undiscovered code gap 82A3A330-82A3A338
+0x82A3A390 = {}  # undiscovered code gap 82A3A390-82A3A398
+0x82A3A498 = {}  # undiscovered code gap 82A3A498-82A3A4A0
+0x82A3A518 = {}  # undiscovered code gap 82A3A518-82A3A520
+0x82A3A578 = {}  # undiscovered code gap 82A3A578-82A3A580
+0x82A3A5D8 = {}  # undiscovered code gap 82A3A5D8-82A3A5E0
+0x82A3A648 = {}  # undiscovered code gap 82A3A648-82A3A650
+0x82A3A6A8 = {}  # undiscovered code gap 82A3A6A8-82A3A6B0
+0x82A3A708 = {}  # undiscovered code gap 82A3A708-82A3A710
+0x82A3A768 = {}  # undiscovered code gap 82A3A768-82A3A770
+0x82A3A7C8 = {}  # undiscovered code gap 82A3A7C8-82A3A7D0
+0x82A3A828 = {}  # undiscovered code gap 82A3A828-82A3A830
+0x82A3A888 = {}  # undiscovered code gap 82A3A888-82A3A890
+0x82A3A900 = {}  # undiscovered code gap 82A3A900-82A3A908
+0x82A3A960 = {}  # undiscovered code gap 82A3A960-82A3A968
+0x82A3A9C0 = {}  # undiscovered code gap 82A3A9C0-82A3A9C8
+0x82A3AA20 = {}  # undiscovered code gap 82A3AA20-82A3AA28
+0x82A3AB00 = {}  # undiscovered code gap 82A3AB00-82A3AB08
+0x82A3AB98 = {}  # undiscovered code gap 82A3AB98-82A3ABA0
+0x82A3ABF8 = {}  # undiscovered code gap 82A3ABF8-82A3AC00
+0x82A3AC58 = {}  # undiscovered code gap 82A3AC58-82A3AC60
+0x82A3ACB8 = {}  # undiscovered code gap 82A3ACB8-82A3ACC0
+0x82A3AD18 = {}  # undiscovered code gap 82A3AD18-82A3AD20
+0x82A3AD80 = {}  # undiscovered code gap 82A3AD80-82A3AD88
+0x82A3ADE0 = {}  # undiscovered code gap 82A3ADE0-82A3ADE8
+0x82A3AE48 = {}  # undiscovered code gap 82A3AE48-82A3AE50
+0x82A3AF80 = {}  # undiscovered code gap 82A3AF80-82A3AF88
+0x82A3AFE0 = {}  # undiscovered code gap 82A3AFE0-82A3AFE8
+0x82A3B040 = {}  # undiscovered code gap 82A3B040-82A3B048
+0x82A3B0A0 = {}  # undiscovered code gap 82A3B0A0-82A3B0A8
+0x82A3B100 = {}  # undiscovered code gap 82A3B100-82A3B108
+0x82A3B160 = {}  # undiscovered code gap 82A3B160-82A3B168
+0x82A3B1C0 = {}  # undiscovered code gap 82A3B1C0-82A3B1C8
+0x82A3B220 = {}  # undiscovered code gap 82A3B220-82A3B228
+0x82A3B280 = {}  # undiscovered code gap 82A3B280-82A3B288
+0x82A3B2E0 = {}  # undiscovered code gap 82A3B2E0-82A3B2E8
+0x82A3B340 = {}  # undiscovered code gap 82A3B340-82A3B348
+0x82A3B3A0 = {}  # undiscovered code gap 82A3B3A0-82A3B3A8
+0x82A3B400 = {}  # undiscovered code gap 82A3B400-82A3B408
+0x82A3B460 = {}  # undiscovered code gap 82A3B460-82A3B468
+0x82A3B4C0 = {}  # undiscovered code gap 82A3B4C0-82A3B4C8
+0x82A3B520 = {}  # undiscovered code gap 82A3B520-82A3B528
+0x82A3B580 = {}  # undiscovered code gap 82A3B580-82A3B588
+0x82A3B5E0 = {}  # undiscovered code gap 82A3B5E0-82A3B5E8
+0x82A3B640 = {}  # undiscovered code gap 82A3B640-82A3B648
+0x82A3B6A0 = {}  # undiscovered code gap 82A3B6A0-82A3B6A8
+0x82A3B730 = {}  # undiscovered code gap 82A3B730-82A3B738
+0x82A3B790 = {}  # undiscovered code gap 82A3B790-82A3B798
+0x82A3B7F0 = {}  # undiscovered code gap 82A3B7F0-82A3B7F8
+0x82A3BBC0 = {}  # undiscovered code gap 82A3BBC0-82A3BBC8
+0x82A3BD18 = {}  # undiscovered code gap 82A3BD18-82A3BD20
+0x82A3BDE8 = {}  # undiscovered code gap 82A3BDE8-82A3BDF0
+0x82A3BE48 = {}  # undiscovered code gap 82A3BE48-82A3BE50
+0x82A3BEA8 = {}  # undiscovered code gap 82A3BEA8-82A3BEB0
+0x82A3BF08 = {}  # undiscovered code gap 82A3BF08-82A3BF10
+0x82A3C0D0 = {}  # undiscovered code gap 82A3C0D0-82A3C0D8
+0x82A3C2E0 = {}  # undiscovered code gap 82A3C2E0-82A3C2E8
+0x82A3C340 = {}  # undiscovered code gap 82A3C340-82A3C348
+0x82A3C3A0 = {}  # undiscovered code gap 82A3C3A0-82A3C3A8
+0x824D9CD8 = {}  # referenced from data table, not covered
+0x824D9D00 = {}  # referenced from data table, not covered
+0x824D9D28 = {}  # referenced from data table, not covered
+0x8257EAF0 = {}  # referenced from data table, not covered
+0x8257EAF8 = {}  # referenced from data table, not covered
+0x8257EB28 = {}  # referenced from data table, not covered
+0x825806B8 = {}  # referenced from data table, not covered
+0x828C963C = {}  # referenced from data table, not covered
+0x828DCB0C = {}  # referenced from data table, not covered
+0x828DCE78 = {}  # referenced from data table, not covered
+0x828DCFB8 = {}  # referenced from data table, not covered
+0x828DD690 = {}  # referenced from data table, not covered
+0x828DE0D0 = {}  # referenced from data table, not covered
+0x828E6DD4 = {}  # referenced from data table, not covered
+0x828E853C = {}  # referenced from data table, not covered
+0x828E86B4 = {}  # referenced from data table, not covered
+0x828F0E5C = {}  # referenced from data table, not covered
+0x828F33E8 = {}  # referenced from data table, not covered
+0x828F343C = {}  # referenced from data table, not covered
+0x828F35E4 = {}  # referenced from data table, not covered
+0x828F3630 = {}  # referenced from data table, not covered
+0x824DA178 = {}  # undiscovered code gap 824DA178-824DA218
+0x827248A8 = {}  # undiscovered code gap 827248A8-82724908
+0x828CE51C = {}  # undiscovered code gap 828CE51C-828CE554
+0x828CF568 = {}  # undiscovered code gap 828CF568-828CF800
+0x824BC9F4 = {}  # referenced from data table, not covered
+0x828DC9A4 = {}  # referenced from data table, not covered
+
+# reOblivion (2026-11-19): the mouse looks around as on the PC. The player's look update (sub_82417860, PlayerCharacter
+# slot 0x8A) turns the right stick into the PC's mouse counts (r20 across, r19 down: + right and + down, before the
+# bInvertYValues flip) and turns the player by counts * fMouseSensitivity, the PC's own formula. The hook adds the
+# mouse's counts there (src/oblivion_mouse_look.cpp), past the stick's dead zone and acceleration curve, and before
+# the check that zeroes them while the controls are disabled.
+[[entrypoint.midasm_hook]]
+address = 0x82418024
+name = "OblivionMouseLookHook"
+registers = ["r20", "r19"]

@@ -1,0 +1,26 @@
+--- a/plume_deko3d.h
++++ b/plume_deko3d.h
+@@ -863,6 +863,9 @@
+     struct Deko3DOptions {
+         bool depthCompression = false;
+         bool zcull = false;
++        // oblivion nx (2026-11-04): the queue's scratch (local) memory a warp, in KB: the biggest shader that loads (one
++        // that needs more is refused). Oblivion's in-game pixel shaders spill up to 120 KB a warp.
++        unsigned perWarpScratchKB = 128;
+         // A pipeline's vertex shader gets specialization constant 905 (when it declares it), the locations its pixel
+         // shader reads of the ones it writes (none without a pixel shader; not with a geometry shader): banjo-nx's
+         // tools/deko3d_glsl_opt.py, pass vsout, drops the other outputs and what computes them.
+--- a/plume_deko3d.cpp
++++ b/plume_deko3d.cpp
+@@ -913,8 +913,9 @@
+         qm.commandMemorySize = 1u << 20;
+         qm.flushThreshold = qm.commandMemorySize / 8;
+         // Scratch (local) memory per warp: Renut's biggest vertex shaders need 32 KB (uam's DKSH headers; 81 of the 4,881
+-        // need some), variants maybe more: 64 KB a warp (about 8 MB for the GPU's warps).
+-        qm.perWarpScratchMemorySize = 64u << 10;
++        // need some), variants more: Oblivion's in-game pixel shaders up to 123392 bytes. 128 KB a warp by default (about
++        // 16 MB for the GPU's warps; Deko3DOptions::perWarpScratchKB).
++        qm.perWarpScratchMemorySize = g_deko3dOptions.perWarpScratchKB << 10;
+         perWarpScratch = qm.perWarpScratchMemorySize;
+         queue = dkQueueCreate(&qm);
+         if (!queue) {

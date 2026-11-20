@@ -1,0 +1,121 @@
+# Oblivion (XDK 2.0.2417) device fields vs reNut/katamari (XDK 5632) and N&B (TU3, 7978) offsets.
+# Format: <function>: oblivion +dec (0xHEX) <-> katamari <name> 0xHEX / N&B 0xHEX  [notes]
+# N&B values come from katamari's "katamari-nx: N&B->katamari" comments in d3d_native.h / d3d_native_state.cpp / d3d.h.
+# Oblivion device size 20608 (0x5080, = Zuma) vs katamari 0x5700, N&B 0x5E00.
+
+## Ring and header (Oblivion puts the ring first; katamari puts 5 pending masks first)
+KickOff/BeginRingBig: oblivion +0 (0x0) Ring <-> katamari off::Ring 0x30
+KickOff/BeginRingBig: oblivion +4 (0x4) RingLimit <-> katamari off::RingLimit 0x34
+KickOff: oblivion +8 (0x8) RingGuarantee <-> katamari off::RingGuarantee 0x38  [setters compare ring (+0) against +8 before writing]
+AddRef/Release: oblivion +12 (0xC) refcount <-> katamari 0x3C
+Pending masks: oblivion 5 qwords +16..+48 (0x10..0x30) <-> katamari 5 qwords from 0x0 (PredicatedPending2 0x28)
+  observed: PS float constants dirty in +24; VS float constants, B/I constants, texture fetch ((1<<63)>>slot) in +32;
+  IndxOffset bit 61 in +40; VS/PS/decl/stream/clip-plane bits (0x80, 0x100, 0x400, 0x20) in +48. Bit layouts not cross-checked against katamari.
+State tables: oblivion SetRS +96 (0x60) / SetSS +484 (0x1E4) / GetRS +564 (0x234) / GetSS +952 (0x3B8)
+  <-> katamari SetRS 0x40 / SetSS 0x1D4 / GetRS 0x224 / GetSS 0x3B8  [already paired by the state work; listed for completeness]
+
+## Constants block (identical to N&B and katamari)
+SetTexture fetch: oblivion +1152 (0x480) 26 x 24 <-> katamari off::TextureFetch 0x480
+Vertex fetch: oblivion +1776 (0x6F0) 18 x 8 <-> katamari off::VertexFetch 0x6F0
+SetVertexShaderConstantF: oblivion +1920 (0x780) + 16*start <-> katamari ALU constants 0x780 (kTouchFetchEnd)
+SetPixelShaderConstantF: oblivion +6016 (0x1780) + 16*start <-> katamari 0x1780
+SetVertexShaderConstantB: oblivion +10112 (0x2780) <-> N&B VertexShaderB 0x2780 (katamari kTouchTailBegin 0x2780)
+SetPixelShaderConstantB: oblivion +10128 (0x2790) <-> 0x2790
+SetVertexShaderConstantI: oblivion +10144 (0x27A0) <-> 0x27A0
+SetPixelShaderConstantI: oblivion +10208 (0x27E0) <-> 0x27E0
+
+## CDevice private block (Oblivion 0x2880.., katamari 0x2A80..; mostly katamari - 0x200)
+XDK build qword: oblivion +10368 (0x2880) <-> N&B 10880 (0x2A80)  [katamari has its m_DestinationPacket SurfaceInfo at 0x2880: DO NOT reuse katamari's register-packet offsets]
+Owner/creation thread: oblivion +10376 (0x2888) <-> katamari kDeviceOffsetCreationThreadId 10888 (0x2A88)
+Process type: oblivion +10380 (0x288C) <-> katamari kDeviceOffsetIsTitleProcess 10892 (0x2A8C)
+BlockOnFence completed-fence pointer: oblivion +10384 (0x2890) <-> katamari off::FenceCompletion 0x2A90
+Fence/timestamp address (Sync): oblivion +10388 (0x2894) <-> (katamari 0x2A94, inferred)
+Current fence: oblivion +10396 (0x289C) <-> katamari off::FenceTag 0x2A9C
+SetScreenExtentQueryMode: oblivion +10400 (0x28A0) bits 12-13 <-> katamari kScreenExtentQueryMode 0x2AA4  [-0x204, not -0x200; Oblivion also writes reg 0xF01]
+Internal clear word: oblivion +10404 (0x28A4) <-> ?
+Flags bytes: oblivion +10432..+10434 (0x28C0..0x28C2) <-> katamari off::Flags 0x2ABC..0x2ABF  [0x80 no hardware in +10432 (KickOff, DrawVerticesUP); 0x10 tiling (ClearF); +10434 bit 0x08 thread ownership]
+BlockUntilIdle: oblivion +10492 (0x28FC) <-> ?
+
+## Register packets (Oblivion after the private block; katamari 0x2880..0x2A80, before it)
+SetVertexDeclaration: oblivion +11408 (0x2C90) <-> katamari kVertexDeclaration 0x2E24 / N&B 0x2E30  [Zuma also 11408]
+LockResource cross-thread range list: oblivion +11416 (0x2C98) <-> ?
+D3D_SetSurfaceInfo: oblivion +11456 (0x2CC0) <-> katamari off::SurfaceInfo 0x2880; also +11772 (0x2DFC)
+DrawVertices IndxOffset: oblivion +11540 (0x2D14) <-> katamari ValuesPacket region (0x28DC..)
+Scissor-test enable (ClearF, SetScissorRect): oblivion +11952 (0x2EB0) <-> katamari kScissorTestEnable 0x2E48
+Render-state shadows: oblivion 11448..11996 (0x2CB8..0x2EDC) <-> katamari 0x2880..0x2F04 (paired by the state work)
+Per-sampler bytes (SetTexture): oblivion +12046 (0x2F0E) and +12072 (0x2F28); inline filter setters read +12020+s (0x2EF4) and +12098+s (0x2F42)
+
+## Bound objects
+SetFVF declaration: oblivion +12304 (0x3010), FVF +12528 (0x30F0) <-> none in katamari
+InitializeApiState 0xFFFF word: oblivion +12308 (0x3014) <-> ?
+SetIndices: oblivion +12532 (0x30F4) <-> katamari off::IndexBuffer 0x308C / N&B 0x309C
+SetRenderTarget: oblivion +12536 (0x30F8) [4] <-> katamari off::RenderTargets 0x3090 / N&B 0x30A0
+SetDepthStencilSurface: oblivion +12552 (0x3108) <-> katamari off::DepthStencil 0x30A0 / N&B 0x30B0
+SetStreamSource: oblivion +12556 (0x310C) [16] x 8 bytes {offset, vb} <-> katamari off::StreamSources 0x30A4 [16] x 4 bytes (vb only) / N&B 0x30B4  [LAYOUT DIFFERS]
+SetStreamSource strides: oblivion +12688 (0x3190) u8[16] stride/4 <-> katamari off::StreamStrides 0x30E8 / N&B 0x30F8
+SetTexture: oblivion +12704 (0x31A0) [26] <-> katamari off::Textures 0x30F8 / N&B 0x3108
+SetViewport/GetViewport: oblivion +12808 (0x3208) 6 words <-> katamari kViewport 0x3160 (7 words) / N&B 0x3170
+SetScissorRect: oblivion +12832 (0x3220) RECT <-> katamari off::ScissorRect 0x317C / N&B 0x318C
+SetClipPlane: oblivion +12848 (0x3230) 6 x 16 <-> none in katamari
+SetPixelShader: oblivion +12944 (0x3290) <-> katamari kPixelShader 0x318C / N&B 0x319C  [Zuma also 12944]
+SetVertexShader (bound, internal sub_82555B20): oblivion +12948 (0x3294) <-> katamari kVertexShader 0x3190 / N&B 0x31A0
+SetVertexShader (user's shader, AddRef'd): oblivion +20476 (0x4FFC) <-> none
+SetPredication: oblivion +12960 (0x32A0) mask, +12964 (0x32A4) <-> katamari off::Predication 0x319C / PredicationSet 0x31A4 (N&B 0x31AC / 0x31B4)
+
+## Tiling (BeginTiling / EndTiling / ClearF)
+TilingSurfaces: oblivion +12976..+12992 (0x32B0..0x32C0) <-> katamari off::TilingSurfaces 0x31B0 / N&B 0x31C0
+TileCount: oblivion +12996 (0x32C4) <-> katamari off::TileCount 0x31C4 / N&B 0x31D4
+TileRects: oblivion +13000 (0x32C8) <-> katamari off::TileRects 0x31C8 / N&B 0x31D8
+TileOrigins: oblivion +13240 (0x33B8) <-> katamari off::TileOrigins 0x32B8 / N&B 0x32C8
+TilingExtent: oblivion +13480/+13484 (0x34A8/0x34AC) <-> katamari off::TilingExtent 0x3374 / N&B 0x3384
+Tiling flags: oblivion +13488 (0x34B0) <-> katamari Flags at 0x337C (BeginTiling)
+EndTiling saved clear: colour +13504 (0x34C0), Z +13520 (0x34D0), stencil +13524 (0x34D4) <-> katamari (in the 0x3380.. block)
+
+## Command buffer / ring helpers
+Kick suppression (KickOff, BlockOnFence): oblivion +13536 (0x34E0) <-> katamari off::CommandBuffer 0x34B4 (closest analogue; low)
+KickOffSegment struct: oblivion +13572 (0x3504), segment fields +14004..+14044, segment start +14028 (0x36CC) <-> ?
+Allocator callback / context: oblivion +13636 (0x3544) / +13640 (0x3548) <-> none (katamari hooks RingBufferDeviceAllocate directly)
+VerticesRingEnd (DrawVerticesUP, EndIndexedVertices): oblivion +13652 (0x3554) <-> katamari VerticesRingEnd 0x3474 / N&B 13444 (0x3484)
+
+## Presentation
+Present-params copy: oblivion +13736 (0x35A8), 124 bytes <-> ?
+PresentInterval: oblivion +13788 (0x35DC) <-> katamari kPresentInterval 0x3504 / N&B 13572 (0x351C)
+Swap params: oblivion +13832 (0x3608) <-> ?
+Auto depth: oblivion +13972 (0x3694) <-> katamari off::AutoDepthStencil 0x39D0 / N&B 0x39E8
+Auto front: oblivion +13976 (0x3698) <-> katamari off::AutoFrontBuffer 0x39D4 / N&B 0x39EC
+Auto back: oblivion +13980 (0x369C) <-> katamari off::AutoBackBuffer 0x39D8 / N&B 0x39F0
+Thread-ownership critical section: oblivion +14048 (0x36E0) <-> ?
+Gamma (SetGammaRamp compare/store): oblivion +14076 (0x36FC) <-> katamari N&B gamma 22244/22248
+XConfig setting: oblivion +15632 (0x3D10) <-> ?
+Display mode: oblivion +20456..+20468 (0x4FE8..0x4FF4) <-> ?
+-1 words (init): oblivion +20480/+20484 (0x5000/0x5004) <-> ?
+Perf frequency/period: oblivion +20512/+20516 (0x5020/0x5024) <-> katamari N&B 21560/21564
+BehaviorFlags: oblivion +20592 (0x5070) <-> katamari kDeviceOffsetBehaviorFlags 22264 (0x56F8) / N&B 23980
+
+## Resource headers (XDK 2135/2417 lineage, as Zuma / Feeding Frenzy)
+Common +0: refcount low byte, type bits 16-18 (mask 0x00070000), lock count +0x1000, device-bind count +0x80000  <-> katamari type in low nibble (kCommonTypeMask 0xF)
+Fence +4; BaseFlush +8; MipFlush +12 (textures)  <-> katamari flush ranges +0x14/+0x18, fences +8/+0xC (no ReadFence in 2417)
+Texture 40 bytes, fetch constant +16..+36; VB/IB 20 bytes, address +12, size +16
+Surface 64 bytes: parent texture +44, face/slice in +24, level in +32, surface info +48
+GetType numbers: surface 1/2, texture 3/4/5/8, VB 6, IB 7
+CreateSurface Common 0x01040001; SetTextureHeader Common 0x01030001, +8/+12 = 0xFFFF0000
+
+## Guest data addresses
+XDK build qword: 0x82A5FFB8 = 0x0002000009714000 (2.0.2417.0), right after the sampler-state table; sub_82569BE0 loads it (lis -32090; ld -72) into device +10368
+VdGlobalDevice record: 0x820006D4 (image value 0xFFCAE000, the same kernel variable katamari uses); process type 2 reads 0x820006D8 (0xFFCAD000, VdGlobalXamDevice). Device init stores the device there.
+D3DCAPS9: 0x82023A28, 304 bytes (first word 1 = HAL); GetDeviceCaps sub_82564858 copies it
+Adapter identifier: 0x820235D8, 1104 bytes (Direct3D_GetAdapterIdentifier sub_82564820)
+Full viewport: 0x820234D0 {0, 0, 0x7FFFFFFF, 0x7FFFFFFF, 0.0f, 1.0f} (SetSurfaceInfo, BeginTiling)
+Full scissor rect: 0x820234E8 (SetSurfaceInfo, BeginTiling)
+Format table: 0x820232E0, 2-byte entries (Resolve, Lock2DSurface, FindTextureSize) <-> katamari kFormatTable 0x820FA9D0
+Render-state table: 0x82A5FA38; sampler-state table: 0x82A5FEC8 <-> katamari 0x82AD8E48 / 0x82AD9308
+Primitive table: 0x8206D678 (DrawIndexedVertices)
+HiZ owner: 0x82A95D50 (CreateSurface sets, Destroy clears)
+D3D flag word: 0x82A95D54 (read by KickOff and device init)
+Resolve globals: 0x82A95D70..0x82A95D78; XenonGpu_Initialize globals: 0x82A962B0..0x82A962B8
+No-large-pages flag: 0x82B02678 (XPhysicalAlloc sub_828E2060 clears 0x20000000 from protect when set)
+XMemFree: sub_82111968 (device init: lis r4,0xB1800000; li r3,0; bl). XMemAlloc: sub_82111868
+GetCurrentThreadId: sub_828E2158
+KeGetCurrentProcessType thunk: sub_82A3CCF4
+memcpy: sub_828CE600; memset: sub_828CED80
+Device alloc: sub_8255C3D8 / sub_8255C380 (128-byte aligned)

@@ -1,0 +1,262 @@
+# reNut (katamari-nx) -> Oblivion (XDK 2.0.2417) D3D hook map.
+# Source: out/ref/katamari-nx/app/src/renut_engine/gpu/d3d/hooks/{device,draw,resource,shader,state}.cpp
+# (all non-state hooks; the Set/GetRenderStateHook<> and Set/GetSamplerStateHook<> tables are paired elsewhere).
+# Oblivion side: generated/default asm, tools/image.bin, out/renut/d3d_api.txt, out/build/local-release/d3d_trace.txt.
+#
+# Format: <handler> <katamari sub> <oblivion sub | -> <confidence> <evidence; arg-convention vs reNut handler; notes>
+# Confidence: high = shape + fields + callers agree; medium = shape agrees, one detail unverified or args differ;
+#   low = best candidate only; none = no Oblivion function found (the API is absent in 2417, or it is inlined).
+# "(unhooked)" = katamari declares it with BANJO_RENUT_UNHOOKED_HOOK[_SHARED]; "RAW" = BANJO_RENUT_HOOK_RAW.
+# Device offsets below are Oblivion's, in decimal (hex in field_pairs.txt).
+# ReXGlue: a tail-branch thunk (b sub_X) becomes a call, so hooking sub_X also covers the thunk.
+
+# ---- device.cpp ----
+D3DDevice_InsertCallback_hook sub_824E0590 sub_8255D750 high (dev,type,callback,ctx), same as handler. Trace (dev,1,0x827890A0,ctx) from Gamebryo sub_82791260; EndTiling sub_829B9A48 also calls it.
+D3DDevice_AddRef_hook sub_824D01C8 sub_8255E730 high Refcount at +12 (katamari 0x3C). 17 game sites.
+D3DDevice_AcquireThreadOwnership_hook sub_824D0430 sub_8255E890 high Critical section +14048, owner = GetCurrentThreadId (sub_828E2158) stored at +10376, clears bit 0x08 of flags byte +10434. 53 sites.
+D3DDevice_ReleaseThreadOwnership_hook sub_824D0470 sub_8255E7F8 high Kicks with BlockUntilIdle sub_8255D6D8, then owner from +11064*56+11120 and sets +10434 |= 0x08. 53 sites.
+D3DDevice_GetDeviceCaps_hook sub_824E6410 sub_82564858 high (dev,caps): 5 insns, memcpy 304 bytes from D3DCAPS9 0x82023A28. Same args.
+D3DDevice_GetDisplayMode_hook(unhooked) sub_82641498 - none Not found: nothing outside the display/scaler code reads the display-mode words +20456..20468.
+D3DDevice_BlockOnFence_hook(unhooked) sub_8225D1D0 sub_8255D040 high Public BlockOnFence(fence): calls CDevice::BlockOnFence sub_8255CE38(*VdGlobalDevice, fence, 13, 0). Only internal callers.
+D3D_SynchronizeToPresentationInterval_hook sub_824E89E8 sub_8255F470 high (dev) only: no immediate arg (the Gamebryo caller sub_827BA188 leaves r4=1, ignored; the handler ignores it too). Reads PresentInterval +13788, +13992, +10388, +11452; inserts callback 0x8255F3A0 through sub_8255CF20.
+D3DResource_GetDevice_hook(unhooked) sub_8263D4B8 sub_8255F000 high (resource, out): *VdGlobalDevice then AddRef. Same args. One caller sub_8248C8F0.
+D3D_IsFusion_hook(unhooked) sub_82BC8078 - none Not present in 2417.
+D3DDevice_SetGammaRamp_hook sub_824DE218 sub_82563D40 medium ARG SHIFT: Oblivion is (dev, flags r4 [ignored], ramp r5); handler expects (dev, ramp r4). Copies 1536 bytes, VdGetCurrentDisplayGamma correction sub_8256B740, compare/store at +14076, COND_WRITE sub_8256B9F0. Callers: game sub_821CA048 and display-mode set sub_8256A028.
+D3DDevice_SetPWLGamma_hook sub_824DE2F8 sub_82563DD0 medium ARG SHIFT as SetGammaRamp: (dev, flags r4, pwl r5). Called only from sub_8256A028 (display-mode set inside Swap).
+Direct3D_CreateDevice_hook sub_824D0598 sub_8255E918 high (adapter, devtype, focus, behavior, params, ppDevice) same order. Trace (0,1,0,1,params,ppDev) from sub_82791690. Allocates 20608 (0x5080, Zuma's size) via sub_8255C3D8/sub_8255C380 (128-aligned), stores BehaviorFlags at +20592, calls device init sub_8256A108, Release on failure.
+D3DDevice_Release_hook sub_824D0368 sub_8255E748 high Refcount +12; at 1: Uninitialize sub_8256A320 then XMemFree(dev-4, 0x24800000).
+D3D_XenonGpu_Initialize_hook sub_824ED278 sub_8256DC60 high Called by init after the -1 words at +20480/+20484. Writes register shadows 10400,10408,11416,11516,11532,11652,11656,11668,11692,11716,11776,11796,11800,11856,11860,11912, all pending masks +16..+48 = -1, fetch constants 1152 (26x24) and 1776 (18x8). reNut's XenonGpuInitialize writes katamari offsets: needs the Oblivion shadow layout.
+D3D_InitializeApiState_hook sub_824E11A0 sub_82569C30 high Walks state tables 0x82A5FA38 (setter -> +96, getter -> +564) and 0x82A5FEC8 (+484 / +952); SetTexture(null) x26; +12308 = 0xFFFF; SetScreenExtentQueryMode sub_82565720; SetFVF sub_82557858(dev,2); RS 95 via +476 with PresentInterval +13788; internal clear sub_82555DE0 unless flag 0x80. Does not read BehaviorFlags (katamari does).
+D3D_InitializePresentationParameters_hook sub_824E1408 sub_82569D80 high CreateTexture front -> +13976, CreateSurface back -> +13980 + SetRenderTarget(0), depth -> +13972 + SetDepthStencilSurface; copies 124 bytes of params to +13736; writes +13800; calls sub_8256DC18. NO gamma here (2417 sets gamma in sub_8256A028 from Swap).
+D3D_CDevice_Uninitialize_hook sub_824E1B50 sub_8256A320 high VdSetGraphicsInterruptCallback, ExRegisterTitleTerminateNotification, ring re-init sub_8255D7A8, sub_82569F38 releases the auto surfaces.
+KickOff_hook sub_824E0298 sub_8255D488 high 74 callers; skips if +13536 != 0 or flag 0x80 (+10432); returns m_pRing (+0). Same (dev) -> ring.
+KickOffSegment_hook sub_824E0110 sub_8255D348 medium Emits INDIRECT_BUFFER for the segment starting at +14028; uses +13536/+13572 (command-buffer-like). Not the same internals as katamari's; same (dev) arg.
+BeginRingBig_hook sub_824E04B0 sub_8255D670 high (dev,count): kicks when ring + count*4 > RingLimit (+4), else sub_8255D210. Same args.
+BeginRingManual_hook sub_8255A200 - none No standalone function found in 2417 (ring reservation is inline: lwz +0 / lwz +8 / cmplw / bl KickOff in every setter).
+RingBufferDeviceAllocate_hook sub_824DF3F0 sub_8255C5D0 medium ARG SHIFT: default allocator callback stored at +13636 with context at +13640; called as (context r3, device r4, flags r5, pSize r6, alignment r7). Handler expects (device, flags, size, alignment): shift by one register.
+AllocateInlineData_hook(unhooked) sub_821FC318 sub_8255C7D8 high (dev, dwords, alignment) same as handler.
+D3DDevice_SetRingBufferParameters_hook sub_824E05E8 sub_8255D7A8 medium (dev, ringparams): the only VdInitializeRingBuffer caller; internal only (device init with params+72, Uninitialize). Same arg shape.
+D3DDevice_Swap_hook sub_824E8E90 sub_8255F5E0 high (dev, frontbuffer, params) same. Only VdSwap caller; VdGetSystemCommandBuffer, VdPersistDisplay, MmFreePhysicalMemory; calls ResetAllState sub_82563F30 and display-mode set sub_8256A028. Callers: Present, Gamebryo sub_827BA188 DIRECTLY (menu path: Sync + Swap with no Present), sub_8256E708. Frame boundary must be Swap.
+D3DDevice_EndCommandBuffer_hook(unhooked) sub_82640DE8 - none No command-buffer API in Oblivion's image (INDIRECT_BUFFER appears only in the KickOff/segment path).
+BlockOnFence_hook sub_824DFC48 sub_8255CE38 high (dev, fence, type, ctx): r6 is a blocker context (the resource) not NoKick; handler ignores r5/r6 so harmless. Completed-fence pointer +10384, current fence +10396; kicks if fence == current and +13536 == 0; CBlocker loop.
+CBlocker_Check_hook sub_824D0290 sub_82569A20 medium 2000 ms timeout, register dump sub_82569900, trap. Constructor sub_82569A00.
+IsFencePending_hook sub_824E03D0 sub_8255D570 high (fence) same.
+D3DDevice_BeginCommandBuffer_hook(unhooked) sub_82640818 - none Not in 2417.
+D3DDevice_RunCommandBuffer_hook(unhooked) sub_821F1A78 - none Not in 2417.
+
+# ---- draw.cpp ----
+D3DDevice_DrawVertices_hook sub_824D9D08 sub_8255E250 high (dev, prim, start, count) same. Start goes to IndxOffset +11540 (dirty bit 61 of qword +40). Callers Gamebryo sub_8278EFF8, sub_82792388, sub_827929F0.
+D3DDevice_DrawIndexedVertices_hook sub_824DA0F0 sub_8255E490 high (dev, prim, base, startindex, count) same. Index buffer +12532; prim table 0x8206D678; trace (dev,4,0,0,6). 7 sites.
+D3DDevice_DrawIndexedTessellatedVertices_hook sub_824DA9C0 - none Not in 2417.
+D3DDevice_DrawVerticesUP_hook sub_824D9758 sub_8255DE70 high (dev, prim, count, data, stride) same. BeginVertices sub_8255DBD0 + memcpy + ring = +13652 + kick unless flag 0x80. Caller game sub_8211C908.
+D3DDevice_DrawIndexedVerticesUP_hook(unhooked) sub_8263F2B8 - none Not present.
+D3DDevice_BeginVertices_hook sub_824D92B8 sub_8255DBD0 medium (dev, prim, count, stride) same; internal only (only DrawVerticesUP calls it), so the hook is effectively unused. Gamebryo uses BeginIndexedVertices instead (see extra sub_8255DEF8).
+D3DDevice_ClearF_hook sub_824F3248 sub_8255B7A8 high (dev, flags, rect, color*, Z f1, stencil r8): matches handler (z_slot dummy = r7). Reads targets +12536..12552, tiling surfaces +12976..12992, extent +13480/+13484, viewport +12808, scissor +12832, scissor enable +11952.
+D3DDevice_Clear_hook sub_824F3370 sub_8255BED8 high (dev, count, rects, flags, color, Z f1, stencil r9) same as handler; loops ClearF per rect.
+D3DDevice_Resolve_hook sub_824F12B8 sub_825604D0 high (dev, flags, rect, desttex, point, level r8, slice r9, color r10, ClearZ f1, stencil sp+92, params sp+100) same as handler. Callers Present, Gamebryo sub_8278C138, EndTiling x2.
+D3DDevice_EndTiling_hook(unhooked) sub_821E17C0 sub_829B9A48 high Hook through the RAW form (next lines), as katamari does.
+D3DDevice_BeginTiling_hook(unhooked) sub_82246798 sub_829B9610 high Hook through the RAW form, as katamari does.
+RAW(BeginTiling) sub_824EFBC8 sub_829B9610 high Full form (dev, Flags r4, Count r5, rects r6, color r7, Z f1, stencil r9): same registers katamari's RAW reads. TileCount +12996, rects +13000, origins +13240, extent +13480/84, flags +13488; SetViewport(full 0x820234D0), SetScissorRect(0x820234E8), ClearF. Caller Gamebryo sub_82789870 (virtual).
+RAW(EndTiling) sub_824F0150 sub_829B9A48 high (dev, ResolveFlags r4, rects r5, dest r6, color r7, Z f1, stencil r9, params r10): same registers katamari's RAW reads. Non-last tiles resolve with |0x100/0x200 and saved Z +13520, stencil +13524, colour +13504; calls InsertCallback and ResetAllState. Caller Gamebryo sub_8278C138.
+D3DDevice_BeginExport_hook(unhooked) sub_82237FE8 - none Not in 2417.
+D3DDevice_EndExport_hook(unhooked) sub_82237D80 - none Not in 2417.
+D3DDevice_Present_hook sub_824E9428 sub_8255FBC0 high (dev). SetRenderTarget(0, back +13980), Sync, Resolve to front +13976, KickOff, restore SetViewport (saved +12808) and SetScissorRect (+12832), Swap(dev, front, dev+13832). Only caller game sub_8211DF78; menu frames bypass it.
+D3DDevice_SetVertexShader_hook sub_824D4930 sub_82555C78 high (dev, shader) same. Stores user VS at +20476 and AddRefs shader+4; inner sub_82555B20 stores +12948, dirty 0x80/0x400 in qword +48.
+D3DDevice_SetPixelShader_hook sub_824D4630 sub_82555908 high (dev, shader) same. Stores +12944 (Zuma's offset); dirty 0x100/0x20 in +48.
+
+# ---- resource.cpp ----
+D3DDevice_CreateSurface_hook sub_824D23F8 sub_8255AE40 high (w, h, fmt, ms, params) same. 64-byte surface, Common 0x01040001, EDRAM tile count sub_825592A0, EDRAM alloc sub_82567960, HiZ owner 0x82A95D50.
+D3DResource_Destroy_hook sub_824DB028 sub_8255EB18 high Per type: VB/IB/texture free via XMemFree(.., 0xB1800000); surface frees EDRAM sub_82567910 and clears HiZ owner 0x82A95D50.
+D3D_UnlockResource_hook sub_824DB448 sub_8255EE98 high (resource, base, mip) same. Lock count -0x1000; flushes the ranges at resource +8/+12 via sub_82567658 (katamari +0x14/+0x18).
+D3DVertexBuffer_Unlock_hook sub_824DB7B0 sub_8255F188 high (vb) same.
+D3DSurface_UnlockRect_hook sub_824D0700 sub_82559288 high (surface) same. 9 sites.
+LockResource_hook sub_824DB210 sub_8255EC78 medium ARG SHIFT: Oblivion (resource, fence r4, blocker type r5, mip_lock r6, base r7, mip r8, address r9, size r10, flags sp+84, cacheflags sp+92); handler (resource, type r4, mip_lock r5, base r6, mip r7, address r8, size r9, flags r10). The caller passes the fence (handler loads it itself from +8/+0xC). Flush ranges at resource +8/+12; another thread's lock pushes the range to device +11416.
+D3DVertexBuffer_Lock_hook sub_824DB760 sub_8255F118 high (vb, offset, size, flags): returns base + OFFSET; handler ignores offset, must add it. One caller sub_82829300.
+D3DIndexBuffer_Lock_hook sub_824DB870 sub_8255F248 high (ib, offset, size, flags): flags | 2 before LockResource; returns base + offset (same fix as VB).
+D3D_LockSurface_hook sub_824D1918 sub_8255A5F0 high (tex, slice, level, flags, out...) same shape; calls GetSubresourceLayout sub_8255A150.
+D3D_Lock2DSurface_hook sub_824D19E0 sub_8255A6E8 high (tex, slice, level, locked, rect, flags) same.
+D3D_Lock3DSurface_hook sub_824D1A70 sub_8255A778 high (tex, level, box, boxrect, flags) same.
+D3DArrayTexture_LockRect_hook(unhooked) sub_8263E958 - none No array textures in 2417.
+D3DLineTexture_LockRect_hook sub_824D2148 sub_8255ABA8 high D3DTexture_LockRect (tex, level, locked, rect, flags), 6 insns, same as handler. 10 sites.
+D3DSurface_LockRect_hook sub_824D25B8 sub_8255B1A0 high (surface, locked, rect, flags) same; 9 sites.
+D3DVolume_LockBox_hook sub_824D2620 sub_8255B210 high (volume, locked, box, flags) same.
+D3D_Lock3DSurface_hook(unhooked,thunk) sub_8263EA48 - none No separate thunk seen.
+D3DResource_AddRef_hook sub_824DB550 sub_8255E9A0 high Surfaces forward to parent at +44. Same arg.
+D3DResource_Release_hook sub_824DB5C8 sub_8255EF80 high 48 sites. Same arg.
+D3DResource_GetType_hook sub_824DAF98 sub_8255EA08 high XDK 2135 numbering: VB 6, IB 7, texture 3/4/5/8, surface 1/2. Check the handler's table matches (Zuma/FF lineage).
+D3DSurface_GetDesc_hook sub_824D2520 sub_8255B148 high (surface, desc) same.
+D3DVolume_GetDesc_hook sub_824D25D8 sub_8255B1C8 high (volume, desc) same.
+Get2DSurfaceDesc sub_824D1258 sub_8255A018 high (tex, level, desc) same.
+Get2DSurfaceDesc(unhooked,thunk) sub_8263E970 sub_8255AC68 high D3DTexture_GetLevelDesc thunk (b sub_8255A018), 11 game sites; covered by hooking sub_8255A018.
+Get3DSurfaceDesc sub_824D1358 sub_8255A0C0 high (tex, level, desc) same.
+Get3DSurfaceDesc(unhooked,thunk) sub_8263E978 sub_8255AC70 high Thunk (b sub_8255A0C0), covered.
+LevelLayout_hook sub_824D0E90 sub_82559C58 medium Shape matches (tex, level, out w/h/d/...); single internal use, not traced.
+SubresourceLayout_hook sub_824D1458 sub_8255A150 medium Called by Resolve and LockSurface; out-arg order not verified against handler.
+D3DBaseTexture_GetLevelCount_hook sub_824D2080 sub_8255AAF0 high 4 insns, (tex) same.
+D3DArrayTexture_GetArraySize_hook(unhooked) sub_8263E960 - none No array textures in 2417.
+D3DArrayTexture_UnlockRect_hook sub_824D06E8 sub_82559270 high D3DTexture_UnlockRect (tex, level): 5 insns; handler takes (tex) only, extra arg harmless. 8 sites.
+D3DConstantBuffer_Unlock_hook sub_824DB8B8 - none No constant buffers in 2417.
+D3DTexture_GetSurfaceLevel_hook sub_824D2090 sub_8255AB00 high (tex, level) same.
+D3DCubeTexture_GetCubeMapSurface_hook sub_824D2160 sub_8255ABC0 high (tex, face, level) same.
+D3DVolumeTexture_GetVolumeLevel_hook sub_824D2228 sub_8255AC78 medium Same body shape as GetSurfaceLevel (42 insns); 4 sites.
+D3DDevice_CreateVertexBuffer_hook sub_824DB698 sub_8255F068 high (len, usage, pool) same.
+D3DDevice_CreateIndexBuffer_hook sub_824DB7C0 sub_8255F198 high (len, usage, fmt, pool) same (handler ignores pool).
+D3DDevice_CreateTexture_hook sub_824D22D8 sub_8255AD20 high (w, h, d, levels, usage, fmt, pool, type) same; 40-byte header. 11 sites.
+SetTextureHeader_hook sub_824D1B18 sub_8255A820 high (type, w, h, d, levels, usage, fmt, packing, border sp84, expadj sp92, pitch sp100, header sp108, ...). Common 0x01030001; +8/+12 = 0xFFFF0000. Verify the stack-arg tail against handler.
+FindTextureSize_hook sub_824D09C8 sub_825595C8 medium Shape and format table 0x820232E0 match; args not traced.
+GetMaxMipLevels_hook sub_824D0820 sub_82559430 high (w, h, d, border) same.
+GetTextureDimensions_hook sub_824D0650 sub_825591D8 high (tex, &w, &h, &d) same.
+GetGpuTextureDimensions_hook(unhooked) sub_8263DCA8 - none Not found as a separate function (possibly inlined in sub_825591D8).
+BlockSizeOfGpuFormat_hook sub_824D0788 sub_82559310 high (fmt, &w, &h) same.
+AlignTextureDimensions_hook sub_824D08A8 sub_825594B8 medium (&w, &h, &d, bpp, fmt, dim, tiled): matches handler order; return value not checked.
+GetMipTailLevelOffsetCoords_hook sub_824D0D38 sub_82559B00 low Only candidate: one caller (XG code sub_828EC0E8); 86 insns of mip-tail arithmetic. Unverified.
+
+# ---- shader.cpp ----
+D3DDevice_CreateVertexShader_hook sub_824D6120 sub_82557058 high (function) same; 592-byte header, alloc attr 0xA5800000; calls XGRegisterVertexShader sub_82555A50.
+D3DDevice_CreatePixelShader_hook sub_824D6010 sub_82556F68 high (function) same; 52-byte header, 0xB5800000; registers the microcode inline.
+D3DDevice_CreateVertexDeclaration_hook sub_824D4C50 sub_82555CE0 medium (elements) same; 2 callers, not traced.
+D3DVertexShader_Bind_hook(unhooked) sub_8263FBD0 - none No exported Bind; sub_82568398 / sub_82568978 are draw-time candidates (low).
+XGRegisterVertexShader_hook sub_824D4838 sub_82555A50 medium (shader, physical) inferred from CreateVertexShader's call.
+XGRegisterPixelShader_hook(unhooked) sub_826375A0 - none Inlined in CreatePixelShader sub_82556F68: hooking CreatePixelShader must also register.
+
+# ---- state.cpp (non-state-table hooks) ----
+D3DDevice_SetTexture_hook sub_824D2640 sub_8255B230 high (dev, sampler, tex) same. Pointer +12704 + 4s; fetch 1152 + 24s; dirty (1<<63)>>s in qword +32; per-sampler bytes +12046, +12072. KEEPS A REFERENCE (Common +0x80000) and releases the old texture with fence +10396.
+D3DDevice_SetTexture_hook(Inline) sub_824A3D40 - none No SetTexture_Inline in 2417. Related inline sampler setters exist (extra sub_82562EF8, sub_82563088).
+D3DDevice_SetStreamSource_hook sub_824DDFE0 sub_82563C20 high (dev, stream, vb, offset, stride) same. Entries are 8 bytes {offset, vb} at +12556 (katamari: 4-byte vb pointers); stride/4 byte at +12688 + stream; dirty 0x400 in +48; keeps references.
+D3DDevice_SetIndices_hook sub_824DE188 sub_82563CC0 high (dev, ib) same; +12532; keeps a reference.
+D3DDevice_SetVertexDeclaration_hook sub_824D4B48 sub_82557130 high (dev, decl) same; +11408 (Zuma's); refcount at decl+4; dirty 0x80|0x400 in +48.
+D3DDevice_SetViewport_hook sub_824DE730 sub_825639B0 high (dev, D3DVIEWPORT9*) same; +12808..12828.
+D3D_SetViewport_hook sub_824DE4B8 - none No float-argument internal SetViewport in 2417 (SetSurfaceInfo calls SetViewport with the full viewport).
+D3DDevice_SetScissorRect_hook sub_824DDEE0 sub_825638E8 high (dev, rect*) same; +12832..12844, enable +11952; calls SetSurfaceClip.
+D3D_SetSurfaceClip_hook sub_824DB8C8 sub_825612A0 medium (dev, x1, y1, x2, y2) inferred from SetScissorRect's call.
+D3DDevice_SetRenderTarget_hook sub_824DE868 sub_82564118 high (dev, idx, surf) same; +12536 + 4i.
+D3DDevice_SetDepthStencilSurface_hook sub_824DEBD0 sub_82564480 high (dev, surf) same; +12552.
+D3D_SetSurfaceInfo_hook sub_824DE7D0 sub_82564040 high (dev, surface): +11456, +11772; full scissor 0x820234E8 -> +12832, SetViewport(0x820234D0).
+D3DDevice_SetPredication_hook sub_824EFA58 sub_829B94D8 medium (dev, mask): +12960/+12964, SET_BIN_MASK, flag +10432. Lives in the 0x829B9xxx block next to Begin/EndTiling. Callers Gamebryo sub_82789870, sub_8278C138.
+D3DDevice_SetCommandBufferPredication_hook(unhooked) sub_826411C0 - none Not in 2417.
+D3DDevice_SetShaderGPRAllocation_hook sub_824D4CD8 - none Not in 2417 (only sub_8255D608 writes SQ_GPR_MANAGEMENT 0xD04 = 0).
+D3D_CleanupGprAllocationSetup_hook sub_824D3FE0 sub_8255D608 low Writes SQ_GPR_MANAGEMENT = 0; only caller is SetRingBufferParameters sub_8255D7A8. Probably safe to leave unhooked.
+D3DDevice_SetScreenExtentQueryMode_hook sub_824E67C8 sub_82565720 medium (dev, mode): inserts mode at bits 12-13 of +10400 (katamari 0x2AA4, same Insert(..,12,2)) and EMITS a register write (0xF01) immediately; katamari only shadows. Called from InitializeApiState and ResetAllState. Getter extra sub_82565790.
+D3DDevice_UnsetAll_hook sub_824D0488 - none Not found (no SetRenderTarget/SetDepthStencilSurface caller fits; sub_82569F38 is Uninitialize's auto-surface release).
+D3D_ResetAllState_hook sub_824DE3C0 sub_82563F30 medium (dev, flags): bit 0 skips the predication packets, bit 1 skips the screen-extent re-emit (matches the handler's (CDevice*, BOOL)). Re-emits predication, scissor (+12832), 6 clip planes (+12848), screen-extent mode, then all pending masks -1. Callers: Swap, device init, BeginTiling, EndTiling.
+D3DDevice_BlockUntilIdle_hook sub_824E0518 sub_8255D6D8 high (dev): WAIT_UNTIL reg 0x5C8, then BlockOnFence on current fence +10396; reads +10492.
+D3DDevice_SetRenderTarget_hook(unhooked,thunk) sub_82636EC8 sub_82564650 high Thunk b sub_82564118; covered.
+D3DDevice_GetRenderTarget_hook(unhooked) sub_82636ED0 - none Not in d3d_api (inlined or unused).
+D3DDevice_GetDepthStencilSurface_hook(unhooked) sub_82636F10 - none Not in d3d_api.
+D3DDevice_GetStreamSource_hook(unhooked) sub_82636E40 - none Not in d3d_api.
+D3DDevice_GetViewport_hook(unhooked) sub_82244B18 sub_82563BF8 high (dev, out): 10 insns, copies +12808. Caller sub_8278C4D0.
+D3DDevice_SetClipPlane_hook(unhooked) sub_826370E8 sub_82563E60 medium (dev, index, plane*): stores 16 bytes at +12848 + 16i, writes the UCP register packet, dirty bit in +48. Internal only (ResetAllState).
+D3DDevice_SetVertexFetchConstant_hook(unhooked) sub_82637138 - none Not in d3d_api.
+D3DDevice_SetVertexShaderConstantB_hook sub_824D4470 sub_825555F8 high (dev, start, data, count): bits at +10112 (N&B VertexShaderB 0x2780, same), dirty in +32.
+D3DDevice_SetPixelShaderConstantB_hook sub_824D44D0 sub_82555650 high Same shape; +10128.
+D3DDevice_SetVertexShaderConstantI_hook(unhooked) sub_826374B0 sub_825556A8 high (dev, start, data, count): +10144 + 4*start.
+D3DDevice_SetPixelShaderConstantI_hook(unhooked) sub_82637500 sub_825556F8 high Same shape; +10208.
+D3DDevice_EndIndexedVertices_hook(unhooked) sub_8263ED90 sub_8255E230 high 6 insns: ring = [+13652] (VerticesRingEnd), kick unless flag 0x80. Used by Gamebryo sub_8278DD40 with BeginIndexedVertices: MUST be hooked in Oblivion together with extra sub_8255DEF8.
+D3D_InvalidateConstants_hook(unhooked) sub_82634B90 - none Not located.
+
+# ---- extras: D3D device functions in out/renut/d3d_api.txt with no reNut counterpart ----
+extra sub_8255DEF8 D3DDevice_BeginIndexedVertices(dev, prim, base, numverts, indexcount, fmt r8 [1 = 32-bit], stride r9, ppIndex r10, ppVertex sp+84). Gamebryo sub_8278DD40. NO reNut hook: these draws are lost unless added. HIGH PRIORITY.
+extra sub_82555368 D3DDevice_SetVertexShaderConstantF(dev, start, data, count): +(120+start)*16 = 0x780 base (same constants block as N&B). 10 sites. reNut has no F hook (reads the block at draw time); fine if the draw path reads 0x780.
+extra sub_825554B0 D3DDevice_SetPixelShaderConstantF: +(376+start)*16 = 0x1780 base; dirty in +24. 10 sites.
+extra sub_82557858 D3DDevice_SetFVF(dev, fvf): +12528, builds a declaration at +12304 via sub_82553CC0. Callers game sub_8211C908, sub_8275FEC0. reNut must translate FVF draws (DrawVerticesUP path).
+extra sub_82555800 D3DVertexShader_Release (45 insns, 3 sites).
+extra sub_82555748 D3DPixelShader_Release (45 insns, 4 sites).
+extra sub_82555DA0 D3DVertexDeclaration_Release (12 sites).
+extra sub_8255F2B0 D3DIndexBuffer_Unlock (3 insns; katamari has no IB Unlock hook; route to the UnlockResource logic).
+extra sub_8255EAB8 D3DVertexBuffer_GetDesc.
+extra sub_8255EAE8 D3DIndexBuffer_GetDesc.
+extra sub_8255D600 D3DResource_IsBusy (2 insns -> IsFencePending on the resource fence).
+extra sub_8255D0A0 D3DResource_BlockUntilNotBusy (BlockOnFence type 49). 4 sites.
+extra sub_8255E7A0 D3DDevice_SetThreadOwnership-like: GetCurrentThreadId -> +10376 (16 insns, 4 sites).
+extra sub_8255E7E0 D3DDevice thread-owner setter (4 insns, stores +10376).
+extra sub_8255E7F0 D3DDevice thread-owner getter (2 insns, loads +10376). 6 sites.
+extra sub_825592A0 EDRAM tile count (w, h, fmt, ms) used by CreateSurface and game sub_82826F18 (= katamari EdramTileCount, not hooked there).
+extra sub_825593A8 D3DFORMAT from a texture fetch constant (used by Get*Desc; XG caller sub_828EBE10).
+extra sub_82562EF8 inline sampler-filter setter (dev, sampler, value) on the fetch constant 1152+24s word 12/16, dirty in +32 (MagFilter-like). Caller sub_827CA990. A state setter outside the state tables: needs pairing with the sampler-state work.
+extra sub_82563088 inline sampler-filter setter, same as sub_82562EF8 with shifted fields (MinFilter-like).
+extra sub_82564820 Direct3D_GetAdapterIdentifier (copies 1104 bytes from 0x820235D8).
+extra sub_82564E48 Direct3D_GetDeviceCaps(adapter, devtype, caps).
+extra sub_82564AE0 Direct3D_Check* (25 insns; likely CheckDeviceType).
+extra sub_82564B48 Direct3D_CheckDeviceFormat (128 insns, format table walk).
+extra sub_82564D48 Direct3D_CheckDeviceMultiSampleType (low: one of the Check* trio).
+extra sub_82564DD0 Direct3D_CheckDepthStencilMatch (low: one of the Check* trio).
+extra sub_82564FF8 D3DDevice_CreateQuery-like (callers Gamebryo 0x82780xxx/0x82782xxx occlusion code).
+extra sub_825650E8 D3DQuery_Release (8 sites).
+extra sub_82565230 D3DQuery_Issue (EVENT_WRITE_ZPD via sub_82564930).
+extra sub_825653D8 D3DQuery_GetData (readback; 210 insns).
+extra sub_8256DC48 low: unknown 5-insn helper in the D3D library (stores u32 3, u16 0 into r3; trace r3 = 0x40303804, not the device). One Gamebryo caller sub_8278BD88. Likely harmless.
+extra sub_8255E230 (see EndIndexedVertices above; listed for completeness).
+
+# ---- extras: internal D3D functions (not in d3d_api.txt, useful for the port) ----
+extra-internal sub_8256A108 CDevice init: sub_82569BE0, VdGlobalDevice store, ExGetXConfigSetting -> +15632, RtlInitializeCriticalSection +14048, allocator 0x8255C5D0 -> +13636, sub_82569B68, ring init, thread sub_8256EB30, XenonGpu_Initialize, InitializePresentationParameters, InitializeApiState, XMemFree(0, 0xB1800000), perf frequency +20512/16, VdRetrainEDRAM sub_8256BC78.
+extra-internal sub_82569BE0 device header init: refcount +12 = 1, XDK build qword -> +10368, thread id -> +10376, process type -> +10380.
+extra-internal sub_8256A028 display-mode set (from Swap): calls SetGammaRamp / SetPWLGamma.
+extra-internal sub_82555DE0 internal clear / EDRAM init packet (end of InitializeApiState).
+extra-internal sub_82565790 GetScreenExtentQueryMode (bits 12-13 of +10400).
+extra-internal sub_8255C7D8 AllocateInlineData (mapped above).
+extra-internal sub_82569F38 releases the auto surfaces (Uninitialize).
+
+# ---- non-device entries of d3d_api.txt ----
+non-device sub_82550428 D3DX/XGraphics (shader compiler / constant-table; callers 0x82544xxx)
+non-device sub_82550828 D3DX/XGraphics
+non-device sub_825508F0 D3DX/XGraphics
+non-device sub_825509D8 D3DX/XGraphics
+non-device sub_82551220 D3DX/XGraphics
+non-device sub_82555130 XGraphics microcode walker (iterates 12-byte CF pairs with a callback r10; callers sub_824BBFB8, 0x829BBxxx)
+non-device sub_825558B8 XGraphics shader-binary descriptor (header, header+52 or +592, size): GetFunction-like, no device
+non-device sub_82555E90 D3DX/XGraphics
+non-device sub_82555E98 D3DX/XGraphics
+non-device sub_82555F98 D3DX/XGraphics
+non-device sub_825571B0 D3DX/XGraphics
+non-device sub_825571B8 D3DX/XGraphics
+non-device sub_825571C0 D3DX/XGraphics
+non-device sub_825571E8 D3DX/XGraphics
+non-device sub_825571F0 D3DX/XGraphics
+non-device sub_825571F8 D3DX/XGraphics
+non-device sub_82557898 D3DX/XGraphics
+non-device sub_82557908 D3DX/XGraphics
+non-device sub_82558220 D3DX/XGraphics
+non-device sub_825583C8 D3DX/XGraphics
+non-device sub_825583D0 D3DX/XGraphics
+non-device sub_82558CD0 D3DX/XGraphics
+non-device sub_82558CD8 D3DX/XGraphics
+non-device sub_82558CE0 D3DX/XGraphics
+non-device sub_82558CE8 D3DX/XGraphics
+non-device sub_82558D30 D3DX/XGraphics
+non-device sub_82558FA0 D3DX/XGraphics
+non-device sub_82558FA8 D3DX/XGraphics
+non-device sub_82558FB0 D3DX/XGraphics
+non-device sub_82558FB8 D3DX/XGraphics
+non-device sub_82559190 D3DX/XGraphics
+non-device sub_82559198 D3DX/XGraphics
+non-device sub_825591A0 D3DX/XGraphics
+non-device sub_8256FB38 XAudio (critical sections, 44100 Hz args, callers 0x82A40xxx / 0x8247xxxx)
+non-device sub_8256FBA0 XAudio
+non-device sub_8256FBF8 XAudio
+non-device sub_8256FC50 XAudio
+non-device sub_8256FCA8 XAudio
+non-device sub_8256FD08 XAudio
+non-device sub_8256FD60 XAudio
+non-device sub_8256FDB0 XAudio
+non-device sub_8256FE08 XAudio
+non-device sub_8256FE70 XAudio
+non-device sub_8256FEC8 XAudio
+non-device sub_8256FF20 XAudio
+non-device sub_8256FF78 XAudio
+non-device sub_8256FFF0 XAudio
+non-device sub_829B9018 not D3D (game/middleware utility, callers 0x8299xxxx)
+non-device sub_829B9050 not D3D
+non-device sub_829B90B0 not D3D
+non-device sub_829B90E8 not D3D
+non-device sub_829B9128 not D3D
+non-device sub_829B9230 not D3D
+non-device sub_829B9290 not D3D
+non-device sub_829B92A0 not D3D
+non-device sub_829B9300 not D3D
+non-device sub_829B9398 not D3D
+non-device sub_829B93B8 not D3D
+non-device sub_829B9480 not D3D (virtual dispatch on an object table, (r4+7)*4)
+non-device sub_829B9DB8 not D3D
+non-device sub_829B9E58 not D3D
+non-device sub_829B9EC8 not D3D
+non-device sub_829B9FC8 not D3D (vsnprintf logger, 161 sites)

@@ -1,0 +1,161 @@
+--- a/XenosRecomp/shader_recompiler.h
++++ b/XenosRecomp/shader_recompiler.h
+@@ -40,6 +40,9 @@
+     // Structured if/else emission: instruction indices where a "} else {" is
+     // emitted (then-branch close is part of the event, not ifEndLabels).
+     std::unordered_set<uint32_t> elseLabels;
++    // oblivion nx (2026-11-04): instruction indices where "do {" loops open (a backward conditional jump to the index
++    // closes each with "} while (cond);").
++    std::unordered_map<uint32_t, uint32_t> doLoopHeads;
+ #endif
+     uint32_t specConstantsMask = 0;
+ 
+--- a/XenosRecomp/shader_recompiler.cpp
++++ b/XenosRecomp/shader_recompiler.cpp
+@@ -2593,6 +2593,9 @@
+     std::vector<CfSummary> cfSummaries;
+     std::vector<uint32_t> loopStarts;
+     std::unordered_map<uint32_t, uint32_t> loopEndFor;
++    // oblivion nx (2026-11-04): a backward conditional jump's target -> the jump (a do-while loop; Oblivion's skin and
++    // light shaders loop with predicated jumps instead of LoopStart/LoopEnd).
++    std::unordered_map<uint32_t, uint32_t> backJumpTo;
+     uint32_t cfIndex = 0;
+ 
+     while (instrAddress < instrSize)
+@@ -2644,7 +2647,12 @@
+             case ControlFlowOpcode::CondJmp:
+             {
+                 if (cfInstr.condJmp.direction || cfInstr.condJmp.address <= cfIndex)
+-                    simpleControlFlow = false;
++                {
++                    // A conditional jump back is a do-while loop (structured below); other backward jumps are not.
++                    if (cfInstr.condJmp.isUnconditional || cfInstr.condJmp.address > cfIndex ||
++                        !backJumpTo.emplace(uint32_t(cfInstr.condJmp.address), cfIndex).second)
++                        simpleControlFlow = false;
++                }
+ 
+                 cfSummaries.push_back({
+                     cfInstr.condJmp.isUnconditional ? CfKind::Uncond : CfKind::Cond,
+@@ -2680,18 +2688,33 @@
+         // trailing unconditional jump to the continuation is a no-op after
+         // structuring, a conditional jump opens an if (with an else branch
+         // when the instruction before its target is an unconditional jump to
+-        // a legal merge point). Any other shape rejects the shader back to
+-        // the switch(pc) state machine.
++        // a legal merge point). A conditional jump back to an index heads a
++        // do-while loop over [index, jump) when that region structures on
++        // its own (oblivion nx, 2026-11-04). Any other shape rejects the
++        // shader back to the switch(pc) state machine.
+         const uint32_t instrCount = (instrSize / 12) * 2;
+         if (cfSummaries.size() > instrCount)
+             cfSummaries.resize(instrCount);
+ 
++        std::unordered_set<uint32_t> doLoopsOpened;
+         std::function<bool(uint32_t, uint32_t, uint32_t)> structure =
+             [&](uint32_t lo, uint32_t hi, uint32_t cont) -> bool
+         {
+             uint32_t i = lo;
+             while (i < hi)
+             {
++                if (auto back = backJumpTo.find(i); back != backJumpTo.end() && doLoopsOpened.insert(i).second)
++                {
++                    // The loop body [i, j); the jump at j closes it (its condition loops).
++                    const uint32_t j = back->second;
++                    if (j >= hi)
++                        return false;
++                    ++doLoopHeads[i];
++                    if (!structure(i, j, j))
++                        return false;
++                    i = j + 1;
++                    continue;
++                }
+                 const CfSummary& summary = cfSummaries[i];
+                 switch (summary.kind)
+                 {
+@@ -2706,6 +2729,8 @@
+                 case CfKind::Cond:
+                 {
+                     const uint32_t t = summary.target;
++                    if (t <= i)
++                        return false; // a loop's closing jump outside its loop
+                     if (t > hi)
+                     {
+                         if (t != cont)
+@@ -2784,6 +2809,7 @@
+     {
+         ifEndLabels.clear();
+         elseLabels.clear();
++        doLoopHeads.clear();
+     }
+ #else
+     while (instrAddress < instrSize)
+@@ -2893,6 +2919,17 @@
+                     indent();
+                     out += "{\n";
+                     ++indentation;
++                }
++                if (auto doHead = doLoopHeads.find(pc); doHead != doLoopHeads.end())
++                {
++                    for (uint32_t i = 0; i < doHead->second; i++)
++                    {
++                        indent();
++                        out += "do\n";
++                        indent();
++                        out += "{\n";
++                        ++indentation;
++                    }
+                 }
+             #endif
+             }
+@@ -3041,6 +3078,34 @@
+                 }
+                 else
+                 {
++#ifdef RENUT_RECOMP
++                    // oblivion nx (2026-11-04): structured, a jump back (pc is already the next index) closes its
++                    // do-while loop: the loop runs again when the jump fires, so its condition is not inverted.
++                    const bool closesLoop = simpleControlFlow && cfInstr.condJmp.address < pc;
++                    const bool invert = simpleControlFlow && !closesLoop;
++                    std::string condition;
++                    if (cfInstr.condJmp.isPredicated)
++                        condition = fmt::format("{}p0", cfInstr.condJmp.condition ^ invert ? "" : "!");
++                    else
++                    {
++                        // Bools expand to BOOL_BIT(N) expressions; negate when the jump fires on a clear bit.
++                        const bool jumpIfSet = cfInstr.condJmp.condition ^ invert;
++                        auto findResult = boolConstants.find(cfInstr.condJmp.boolAddress);
++                        if (findResult != boolConstants.end())
++                            condition = fmt::format("{}{}", jumpIfSet ? "" : "!", findResult->second);
++                        else
++                            condition = fmt::format("{}BOOL_BIT({})", jumpIfSet ? "" : "!", uint32_t(cfInstr.condJmp.boolAddress));
++                    }
++                    if (closesLoop)
++                    {
++                        --indentation;
++                        indent();
++                        println("}} while ({});", condition);
++                        break;
++                    }
++                    indent();
++                    println("if ({})", condition);
++#else
+                     indent();
+                     if (cfInstr.condJmp.isPredicated)
+                     {
+@@ -3048,7 +3113,7 @@
+                     }
+                     else
+                     {
+-#if defined(REBLUE_RECOMP) || defined(RENUT_RECOMP)
++#if defined(REBLUE_RECOMP)
+                         // Bools expand to BOOL_BIT(N) expressions; negate when the jump fires on a clear bit.
+                         const bool jumpIfSet = cfInstr.condJmp.condition ^ simpleControlFlow;
+                         auto findResult = boolConstants.find(cfInstr.condJmp.boolAddress);
+@@ -3064,6 +3129,7 @@
+                             println("if (b{} {}= 0)", uint32_t(cfInstr.condJmp.boolAddress), cfInstr.condJmp.condition ^ simpleControlFlow ? "!" : "=");
+ #endif
+                     }
++#endif
+ 
+                     if (simpleControlFlow)
+                     {

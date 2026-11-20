@@ -1,0 +1,40 @@
+== Oblivion Switch memprobe ==
+[d] process memory
+  appletType=0 (0=Application 1=SystemApplet 2=LibraryApplet 3=OverlayApplet 4=SystemApplication 5=Default/hbl-applet)
+  envIsSyscallHinted: 0x73(SetProcessMemoryPermission)=1 0x74(MapProcessMemory)=1 0x75=1
+  own process handle=0xffff8001
+  TotalMemorySize=3285 MiB UsedMemorySize=321 MiB free=2963 MiB
+  TotalNonSystem=3285 MiB UsedNonSystem=321 MiB SystemResource total=0 MiB used=0 MiB
+  ASLR  region 8000000 + 7ff8000000 (511 GiB)
+  Alias region 1100800000 + 1000000000 (64 GiB)
+  Heap  region 2100800000 + 200000000 (8 GiB)
+  Stack region 1080800000 + 80000000 (2 GiB)
+  system DRAM total=0 MiB used=0 MiB
+[a] VA reservation
+  virtmemFindAslr(1024 MiB) -> 0x6866f5e000
+  virtmemFindAslr(4608 MiB) -> 0x54379c000
+  virtmemFindAslr(16384 MiB) -> 0x49a8b68000
+  reserved 4.5 GiB at 0x54379c000 (reservation=0x21008003c0), 4 GiB aligned? no
+  query reservation @0x54379c000: base=0x80805000 size=0xffffff000 type=Unmapped perm=0 attr=0
+[b] aliases of a backing block
+  b1 shmemCreate(512 MiB) rc=0x4201 handle=0x0
+  memalign(64 MiB) heap=0x2101600000
+  b3 svcMapProcessMemory(dst=0x62379c000, own handle, src=0x2101e00000) rc=0xe401
+  b2 stack-region dst=0x108d4f4000
+  b2 svcMapMemory rc=0x0
+  query b2 src after map @0x2101e00000: base=0x2101e00000 size=0x400000 type=Heap perm=0 attr=1
+  query b2 dst @0x108d4f4000: base=0x108d4f4000 size=0x400000 type=Mapped perm=3 attr=0
+  stack-region block @80805000 size=ffffff000 type=Unmapped perm=0
+  stack-region block @1080804000 size=100000 type=Mapped perm=3
+  stack-region block @1080904000 size=107fefc000 type=Unmapped perm=0
+  b2b svcMapMemory at stack start (1080800000): rc=0xd401
+  b2b svcMapMemory at stack start+64K (1080810000): rc=0xd401
+  b2b svcMapMemory at stack end-64K (11007f0000): rc=0x0
+[c] fault test on plain heap memory (baseline)
+  [heap/setmemperm] set perm 1 via mode 1: rc=0x0
+  query heap/setmemperm @0x2102600000: base=0x2102600000 size=0x1000 type=Heap perm=1 attr=0
+  [heap/setmemperm] writing to protected page (expect a fault)...
+  [heap/setmemperm] survived: faults=0 far=0x0 pc=0x0 esr=0x0 desc=0x0 fixrc=0x0 value=0x12345678
+  b4 svcMapPhysicalMemory(alias_a, 2 MiB) rc=0xfa01
+[d] after tests: total=3285 MiB used=321 MiB
+== done ==

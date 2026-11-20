@@ -1,0 +1,49 @@
+# reOblivion web: the browser build's fixed settings, compiled in (src/oblivion_builtin_config.h.in) and applied before
+# the player's /save/oblivion.toml, which overrides any of them.
+gpu_plugin = ""
+
+# The game's own post-process targets (8-bit): reNut's high-precision ones are 16-bit unorm, which WebGPU cannot filter.
+renut_post_process_precision = "Game"
+
+# Keyboard and mouse (2026-11-19): PC Oblivion's own default controls (its Oblivion_default.ini [Controls]), played
+# on the 360 game's pad (the SDK's MnK driver), and the mouse turning the player the PC's way (mnk_mouse_direct: counts
+# times fMouseSensitivity, src/oblivion_mouse_look.cpp), not through the stick. Mouse look locks the pointer on a click
+# in the page; Escape gives it back (the browser's rule). "Game:" binds work in play, "Menu:" binds in the menus (the
+# 360's menus want the pad: Enter / Space / the left button choose, Escape / Tab / the right button go back, Q and E
+# turn the tabs, the wheel scrolls), the rest in both.
+mnk_mode = true
+mnk_mouse = true
+mnk_mouse_direct = true
+mnk_exact_modifiers = false
+mnk_sensitivity = 1.0                # 1: the PC's turn for a count of the mouse (fMouseSensitivity)
+mnk_mouse_deadzone = 8700            # the menus' right stick: the game's own dead zone
+mnk_walk_deflection = 0.75           # walking: under the 360's run zone (fAnalogRunZonePercent 0.8)
+mnk_always_run = true
+keybind_run = "Shift"                # held: walk (run with Always Run off)
+keybind_always_run = "CapsLock"
+keybind_auto_move = "Game:Q"
+keybind_lstick_up = "W,Up"           # Forward (the arrows too; the menus follow the left stick)
+keybind_lstick_down = "S,Down"       # Back
+keybind_lstick_left = "A,Left"       # Slide Left
+keybind_lstick_right = "D,Right"     # Slide Right
+keybind_lstick_press = "Game:Control"            # Crouch/Sneak
+keybind_rstick_press = "Game:R,Game:MMB"         # Toggle POV
+keybind_rstick_up = ""               # the mouse looks around
+keybind_rstick_down = ""
+keybind_rstick_left = ""
+keybind_rstick_right = ""
+keybind_a = "Space,Return,Game:Z,Menu:LMB"       # Activate (Z: Grab, holding it), a menu's choice
+keybind_b = "Tab,Menu:Escape,Menu:Backspace,Menu:RMB"  # Menu Mode, a menu's back
+keybind_x = "F"                      # Ready Item
+keybind_y = "Game:E,Menu:Y"          # Jump
+keybind_right_trigger = "Game:LMB,Menu:E"        # Use (attack); the menus' next tab
+keybind_left_trigger = "Game:RMB,Game:Alt,Menu:Q"  # Block; the menus' previous tab
+keybind_right_shoulder = "Game:C,Menu:C"         # Cast
+keybind_left_shoulder = "Menu:Z"
+keybind_dpad_up = "1,2,8,Menu:WheelUp"           # Quick1-8: the hotkey wheel's eight slots, clockwise from the top
+keybind_dpad_right = "2,3,4"
+keybind_dpad_down = "4,5,6,Menu:WheelDown"
+keybind_dpad_left = "6,7,8"
+keybind_back = "Game:T"              # Rest (wait)
+keybind_start = "Game:Escape,P"      # the pause menu
+keybind_guide = ""

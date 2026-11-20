@@ -1,0 +1,19 @@
+# Hand-reviewed names for hot 360 functions that have no PC counterpart (Xbox D3D runtime) or that the matcher could not reach.
+# addr name confidence evidence      (semantics were read from the recompiled code; names are descriptive, not original symbols)
+82569A20 D3D::GpuHangCheck med D3D lib: strings 'ERR[D3D]... GPU hung', returns 1 while elapsed < 2000 ms
+8255CE38 D3D::WaitForRingSpace med D3D lib: loops on GpuHangCheck until ring read ptr (+10384) leaves room for the request
+8255D6D8 D3D::BlockUntilIdle low D3D lib: emits a fence packet then spins on +10492 until the GPU is done
+8255E7F8 D3D::AcquireThreadOwnership low D3D lib: BlockUntilIdle, then stores the owner id read by GpuHangCheck (+10376), called from 46 sites
+8255EC78 D3D::FlushGpuCaches low D3D lib: writes cache-flush packets into the ring (waits via WaitForRingSpace)
+8255F118 D3D::FlushGpuCaches_Wrapper low D3D lib: thin wrapper around 8255EC78
+828E2158 Xbox::GetCurrentThreadId low three instructions: PCR(r13)+256 -> KTHREAD -> +332
+828C8D50 _stricmp med CRT: byte loop with ASCII upper-to-lower folding, returns difference
+82110068 NiRefObject::DecrementRefCount med atomic dec of +4, calls vtable slot 0 (delete) at zero
+822C5660 NiObject::IsKindOf med calls GetType (vtable slot 1) then walks the NiRTTI parent chain (+4) looking for the argument
+825A60F8 NiMatrix3::Multiply med 3x3 matrix product (row stride 16 on 360)
+8229DDA0 NiTransform::Multiply med rotation product via NiMatrix3::Multiply, scale product, translate
+82114000 Oblivion::MainInit low startup: 'Default Pool N' allocator pools, Oblivion.ini, BlendSettings.ini
+828C9100 RTTI::DynamicCastHelper low string-compares type names (+8) of a class's bases, called only by Oblivion_DynamicCast
+8278EFF8 NiXenonRenderer::RenderGeometryWithShader low IsKindOf check then calls shader vtable slots 10-13 per pass
+822BF5D0 BSFaceGen::MorphVertexStream low VMX vertex unpack/pack (vupkd3d128/vpkd3d128) into a locked vertex buffer
+822B41F8 BSFaceGen::PackVertexStream low VMX vertex pack (vpkd3d128) into a locked vertex buffer, called from BSFaceGenNiNode slot 0x18

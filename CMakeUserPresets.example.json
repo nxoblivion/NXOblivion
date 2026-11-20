@@ -1,0 +1,23 @@
+{
+    "version": 6,
+    "configurePresets": [
+        {
+            "name": "local-release",
+            "inherits": "win-amd64-release",
+            "cacheVariables": {
+                "CMAKE_PREFIX_PATH": "${sourceDir}/thirdparty/rexglue-sdk/out/install/win-amd64"
+            }
+        },
+        {
+            "name": "local-relwithdebinfo",
+            "inherits": "win-amd64-relwithdebinfo",
+            "cacheVariables": {
+                "CMAKE_PREFIX_PATH": "${sourceDir}/thirdparty/rexglue-sdk/out/install/win-amd64"
+            }
+        }
+    ],
+    "buildPresets": [
+        { "name": "local-release", "configurePreset": "local-release" },
+        { "name": "local-relwithdebinfo", "configurePreset": "local-relwithdebinfo" }
+    ]
+}

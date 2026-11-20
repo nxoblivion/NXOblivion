@@ -1,0 +1,10 @@
+# reOblivion (reNut renderer) for the Switch: the player's settings. Written next to the NRO when missing; the rest of the
+# settings are built in (any key added here overrides them).
+# The most frames a second the game runs at (the console version runs at 30).
+oblivion_renut_frame_cap = 30.0
+# The FPS counter in the top-left corner (L+R+Up shows or hides it; L+R and the right stick move it).
+switch_fps_overlay = true
+# The console's clocks while the game runs: CPU 1785 MHz (the system's own "boost mode" speed), GPU 460.8 MHz in handheld
+# mode and 768 MHz docked, memory 1600 MHz. The game needs the CPU: with false the system's clocks stay (CPU 1020 MHz,
+# handheld GPU 307.2 MHz) and it runs much slower. The battery drains faster with true.
+switch_clocks = true

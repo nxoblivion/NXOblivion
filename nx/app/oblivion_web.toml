@@ -1,0 +1,2 @@
+# reOblivion web: your settings (/save/oblivion.toml in the browser's storage). Anything here overrides the build's
+# defaults; the key binds are keybind_* (oblivion_web_defaults.toml lists them), mouse speed is mnk_sensitivity.

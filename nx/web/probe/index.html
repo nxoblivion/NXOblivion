@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>reOblivion fridge probe</title>
+<style>body{font:20px sans-serif;background:#111;color:#eee;margin:24px}td{padding:4px 12px}.ok{color:#6d6}.no{color:#e66}</style>
+</head><body>
+<h1>reOblivion browser probe</h1>
+<p id="status">Testing...</p>
+<table id="t"></table>
+<script>
+(async () => {
+  const r = {};
+  const wasm = (bytes) => { try { return WebAssembly.validate(new Uint8Array(bytes)); } catch (e) { return false; } };
+  r.userAgent = navigator.userAgent;
+  r.secureContext = window.isSecureContext;
+  r.crossOriginIsolated = !!window.crossOriginIsolated;
+  r.cores = navigator.hardwareConcurrency || null;
+  r.deviceMemoryGB = navigator.deviceMemory || null;
+  r.screen = screen.width + 'x' + screen.height + ' @' + devicePixelRatio;
+  r.wasm = typeof WebAssembly === 'object';
+  // Feature probes (tiny modules from wasm-feature-detect).
+  r.wasmSimd = wasm([0,97,115,109,1,0,0,0,1,5,1,96,0,1,123,3,2,1,0,10,10,1,8,0,65,0,253,15,253,98,11]);
+  r.wasmThreadsOps = wasm([0,97,115,109,1,0,0,0,1,4,1,96,0,0,3,2,1,0,5,4,1,3,1,1,10,11,1,9,0,65,0,254,16,2,0,26,11]);
+  r.wasmExceptions = wasm([0,97,115,109,1,0,0,0,1,4,1,96,0,0,3,2,1,0,10,8,1,6,0,6,64,25,11,11]);
+  r.wasmBulkMemory = wasm([0,97,115,109,1,0,0,0,1,4,1,96,0,0,3,2,1,0,5,3,1,0,1,10,14,1,12,0,65,0,65,0,65,0,252,10,0,0,11]);
+  r.wasmMemory64 = wasm([0,97,115,109,1,0,0,0,5,3,1,4,1]);
+  r.sharedArrayBuffer = typeof SharedArrayBuffer === 'function';
+  // Largest wasm32 memory this browser hands out (in 256 MiB steps, up to 4 GiB).
+  let maxMiB = 0;
+  for (let mib = 256; mib <= 4096; mib += 256) {
+    try { new WebAssembly.Memory({ initial: mib * 16, maximum: mib * 16 }); maxMiB = mib; } catch (e) { break; }
+  }
+  r.wasmMaxMemoryMiB = maxMiB;
+  r.webgpu = !!navigator.gpu;
+  if (navigator.gpu) {
+    try {
+      const a = await navigator.gpu.requestAdapter();
+      r.webgpuAdapter = !!a;
+      if (a) {
+        r.webgpuFeatures = [...a.features].join(' ');
+        r.webgpuMaxBuffer = a.limits.maxBufferSize;
+        if (a.info) r.webgpuInfo = a.info.vendor + ' ' + a.info.architecture + ' ' + a.info.description;
+      }
+    } catch (e) { r.webgpuError = String(e); }
+  }
+  const c = document.createElement('canvas');
+  const gl = c.getContext('webgl2');
+  r.webgl2 = !!gl;
+  if (gl) {
+    const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+    r.glRenderer = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+    r.glVersion = gl.getParameter(gl.VERSION);
+    r.glMaxTexture = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+    r.glExtensions = gl.getSupportedExtensions().join(' ');
+  } else {
+    r.webgl1 = !!c.getContext('webgl');
+  }
+  r.audioWorklet = typeof AudioWorkletNode === 'function';
+  r.gamepadApi = typeof navigator.getGamepads === 'function';
+  r.fileSystemAccess = typeof window.showDirectoryPicker === 'function';
+  r.opfs = !!(navigator.storage && navigator.storage.getDirectory);
+  if (navigator.storage && navigator.storage.estimate) {
+    try { const e = await navigator.storage.estimate(); r.storageQuotaGB = +(e.quota / 2 ** 30).toFixed(1); } catch (e) {}
+  }
+  // A short single-thread JS benchmark (relative CPU speed; the 5950X does ~1-2 s... lower is faster).
+  const t0 = performance.now(); let x = 0; for (let i = 0; i < 2e8; i++) x = (x + i * 7) | 0; r.cpuBenchMs = Math.round(performance.now() - t0) + (x ? 0 : 0);
+
+  const t = document.getElementById('t');
+  for (const [k, v] of Object.entries(r)) {
+    const tr = t.insertRow(); tr.insertCell().textContent = k;
+    const td = tr.insertCell(); td.textContent = String(v).slice(0, 300);
+    if (v === true) td.className = 'ok'; if (v === false) td.className = 'no';
+  }
+  try {
+    await fetch('/report', { method: 'POST', body: JSON.stringify(r, null, 1) });
+    document.getElementById('status').textContent = 'Done - results sent to the PC. You can close this page.';
+  } catch (e) {
+    document.getElementById('status').textContent = 'Done, but sending failed: ' + e;
+  }
+})();
+</script></body></html>

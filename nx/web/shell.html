@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>reOblivion</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; color: #ccc; font: 14px system-ui, sans-serif; overflow: hidden; }
+  /* !important: SDL gives the canvas the game window's size (2560x1440) as an inline style; the page decides it. */
+  #canvas { position: absolute; inset: 0; width: 100% !important; height: 100% !important; display: block; outline: none; }
+  #status { position: absolute; left: 12px; bottom: 12px; padding: 6px 10px; background: rgba(0,0,0,.6); border-radius: 4px; pointer-events: none; }
+  #log { position: absolute; left: 0; right: 0; top: 0; max-height: 40%; overflow: auto; margin: 0; padding: 8px; font: 12px ui-monospace, monospace;
+         background: rgba(0,0,0,.75); color: #9c9; white-space: pre-wrap; display: none; }
+  body.showlog #log { display: block; }
+  /* Touch controls (2026-11-19): shown on a touch screen (a phone, a tablet), hidden again by a mouse click. */
+  #touch { position: absolute; inset: 0; display: none; touch-action: none; user-select: none; -webkit-user-select: none;
+           -webkit-touch-callout: none; --u: min(9vmin, 64px); }
+  body.touch #touch { display: block; }
+  body.touch #canvas { touch-action: none; }
+  #touch .zone { position: absolute; top: 0; bottom: 0; }
+  #touch .move { left: 0; width: 45%; }
+  #touch .look { right: 0; width: 55%; }
+  #touch .b { position: absolute; width: var(--u); height: var(--u); border-radius: 50%; display: flex; align-items: center;
+              justify-content: center; font: 600 calc(var(--u) * .22) system-ui, sans-serif; color: rgba(255,255,255,.85);
+              background: rgba(40,40,40,.35); border: 2px solid rgba(255,255,255,.35); box-sizing: border-box; }
+  #touch .b.on { background: rgba(255,255,255,.35); }
+  #touch .s { width: calc(var(--u) * 1.3); height: calc(var(--u) * .62); border-radius: calc(var(--u) * .31); }
+  #touch .base, #touch .knob { position: absolute; border-radius: 50%; display: none; pointer-events: none;
+                               transform: translate(-50%, -50%); }
+  #touch .base { width: calc(var(--u) * 2.6); height: calc(var(--u) * 2.6); border: 2px solid rgba(255,255,255,.3);
+                 background: rgba(0,0,0,.15); }
+  #touch .knob { width: calc(var(--u) * 1.1); height: calc(var(--u) * 1.1); background: rgba(255,255,255,.35); }
+</style>
+</head>
+<body>
+<canvas id="canvas" tabindex="-1" oncontextmenu="event.preventDefault()"></canvas>
+<pre id="log"></pre>
+<div id="touch">
+  <div class="zone move"></div><div class="zone look"></div>
+  <div class="base"></div><div class="knob"></div>
+</div>
+<div id="status">Loading reOblivion...</div>
+<script>
+  // reOblivion web (2026-11-17). The page only hosts the game: main() runs on a worker (PROXY_TO_PTHREAD) and
+  // draws on #canvas through WebGPU. ?log shows the log over the picture; F9 toggles it.
+  const logEl = document.getElementById('log');
+  const statusEl = document.getElementById('status');
+  if (new URLSearchParams(location.search).has('log')) document.body.classList.add('showlog');
+  addEventListener('keydown', (e) => { if (e.key === 'F9') document.body.classList.toggle('showlog'); });
+  const lines = [];
+  function addLine(text) {
+    lines.push(text);
+    if (lines.length > 2000) lines.splice(0, lines.length - 2000);
+    logEl.textContent = lines.join('\n');
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+  window.reoblivionLog = lines;  // for tests (read through the page)
+  var Module = {
+    canvas: document.getElementById('canvas'),
+    print: (t) => { console.log(t); addLine(t); },
+    printErr: (t) => { console.warn(t); addLine(t); },
+    setStatus: (t) => { statusEl.textContent = t; statusEl.style.display = t ? '' : 'none'; },
+    onAbort: (what) => { statusEl.style.display = ''; statusEl.textContent = 'reOblivion stopped: ' + what; },
+    // The game's exports exist (as stubs that abort) before WebAssembly is up: input waits for this.
+    onRuntimeInitialized: () => { window.reoblivionReady = true; },
+  };
+  // What the build needs from the browser, said plainly instead of a failed start: WebGPU (Chrome/Edge 113, Firefox 141,
+  // Safari 26) and 64-bit WebAssembly memory (a memory section with the i64 limits flag).
+  const memory64 = (() => {
+    try { return WebAssembly.validate(new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 5, 3, 1, 4, 0])); } catch (e) { return false; }
+  })();
+  const missing = [];
+  if (!crossOriginIsolated) missing.push('cross-origin isolation (serve the page with nx/web/serve.js)');
+  if (!navigator.gpu) missing.push('WebGPU' + (isSecureContext ? '' : ' (it needs https or localhost)'));
+  if (!memory64) missing.push('64-bit WebAssembly memory (Memory64)');
+  if (missing.length) {
+    statusEl.textContent = 'This browser cannot run reOblivion: it lacks ' + missing.join(', ') + '.';
+    Module.setStatus = () => {};
+    Module.onAbort = () => {};  // the reason above stays on screen
+  }
+
+  // Keyboard and mouse (2026-11-18): the page reads them itself and hands them to the game's keyboard-and-mouse driver
+  // (rex_web_key / rex_web_mouse, nx/sdk/src/input/mnk), which plays the 360 pad with PC Oblivion's controls
+  // (oblivion_web_defaults.toml) and turns the player by the mouse itself. A click on the picture locks the pointer for
+  // mouse look; Escape gives it back (the browser's rule) and is also the game's pause key.
+  (() => {
+    const canvas = document.getElementById('canvas');
+    const VK = { Enter: 13, NumpadEnter: 13, Escape: 27, Tab: 9, Backspace: 8, Space: 32, ShiftLeft: 16, ShiftRight: 16,
+      ControlLeft: 17, ControlRight: 17, AltLeft: 18, AltRight: 18, CapsLock: 20, PageUp: 33, PageDown: 34, End: 35,
+      Home: 36, ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, Insert: 45, Delete: 46, Semicolon: 186,
+      Equal: 187, Comma: 188, Minus: 189, Period: 190, Slash: 191, Backquote: 192, BracketLeft: 219, Backslash: 220,
+      BracketRight: 221, Quote: 222, NumpadMultiply: 106, NumpadAdd: 107, NumpadSubtract: 109, NumpadDecimal: 110,
+      NumpadDivide: 111 };
+    const vkOf = (code) => {
+      if (code in VK) return VK[code];
+      let m = /^Key([A-Z])$/.exec(code);
+      if (m) return m[1].charCodeAt(0);
+      if ((m = /^Digit(\d)$/.exec(code))) return 48 + +m[1];
+      if ((m = /^Numpad(\d)$/.exec(code))) return 96 + +m[1];
+      if ((m = /^F(\d+)$/.exec(code)) && +m[1] <= 12) return 111 + +m[1];
+      return 0;
+    };
+    const ready = () => window.reoblivionReady === true;
+    const key = (vk, down) => { if (ready()) _rex_web_key(vk, down ? 1 : 0); };
+    // The browser's own keys stay the browser's: F5 (reload), F11 (full screen), F12 (developer tools); F9 the log.
+    const browserKeys = new Set(['F5', 'F9', 'F11', 'F12']);
+    addEventListener('keydown', (e) => {
+      if (browserKeys.has(e.code) || e.metaKey) return;
+      const vk = vkOf(e.code);
+      if (!vk) return;
+      e.preventDefault();  // Tab, Space, the arrows and Backspace would move the page
+      if (!e.repeat) key(vk, true);
+    });
+    addEventListener('keyup', (e) => {
+      const vk = vkOf(e.code);
+      if (vk) { e.preventDefault(); key(vk, false); }
+    });
+    addEventListener('blur', () => key(-1, false));
+    document.addEventListener('visibilitychange', () => { if (document.hidden) key(-1, false); });
+
+    const locked = () => document.pointerLockElement === canvas;
+    let askedPersist = false;
+    const BUTTON_VK = [1, 4, 2];  // left, middle, right
+    canvas.addEventListener('mousedown', (e) => {
+      canvas.focus();
+      // Saves live in the origin's private storage (/save): ask the browser to keep it under storage pressure (once, on
+      // a click, where Firefox may ask the player).
+      if (!askedPersist && navigator.storage && navigator.storage.persist) { askedPersist = true; navigator.storage.persist().catch(() => {}); }
+      if (!locked()) {
+        // The click that asks for the lock is not a game click (it would swing a weapon on the way in).
+        const p = canvas.requestPointerLock && canvas.requestPointerLock({ unadjustedMovement: true });
+        if (p && p.catch) p.catch(() => canvas.requestPointerLock());
+        return;
+      }
+      if (e.button < 3) key(BUTTON_VK[e.button], true);
+    });
+    addEventListener('mouseup', (e) => { if (e.button < 3) key(BUTTON_VK[e.button], false); });
+    document.addEventListener('pointerlockchange', () => {
+      if (!locked()) [1, 2, 4].forEach((vk) => key(vk, false));
+    });
+    addEventListener('mousemove', (e) => {
+      if (locked() && ready()) _rex_web_mouse(e.movementX, e.movementY);
+    });
+    // The wheel's notches are keys (WheelUp 10, WheelDown 11: the menus scroll with them), each a press and a release.
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      if (!e.deltaY) return;
+      const vk = e.deltaY < 0 ? 10 : 11;
+      key(vk, true); key(vk, false);
+    }, { passive: false });
+  })();
+
+  // Touch (2026-11-19): a phone or a tablet plays with on-screen controls, laid out like the 360 pad. The left part of
+  // the screen is a stick where the thumb lands (the left stick: walking, and the menus, which follow it); a drag on the
+  // right part looks around (as the mouse); the buttons are the pad's, pressed through the same keys as the keyboard's
+  // (oblivion_web_defaults.toml). Shown at the first touch (or at once on a phone), hidden by a mouse click.
+  (() => {
+    const touch = document.getElementById('touch');
+    const ready = () => window.reoblivionReady === true;
+    const key = (vk, down) => { if (ready()) _rex_web_key(vk, down ? 1 : 0); };
+    const stick = (n, x, y) => { if (ready()) _rex_web_stick(n, x, y); };
+    // The finger's later moves and its lift go to the element it landed on (a pointer that is already up throws).
+    const capture = (el, e) => { try { el.setPointerCapture(e.pointerId); } catch (err) {} };
+    // [label, virtual key, where (right/bottom or left/top, in units of --u), a pill (small)]
+    const BUTTONS = [
+      ['Use', 32, { right: 1.7, bottom: 0.5 }],             // A (Space: Activate)
+      ['Menu', 9, { right: 0.5, bottom: 1.7 }],             // B (Tab: Menu Mode)
+      ['Weapon', 70, { right: 2.9, bottom: 1.7 }],          // X (F: Ready Item)
+      ['Jump', 69, { right: 1.7, bottom: 2.9 }],            // Y (E: Jump)
+      ['Attack', 1, { right: 0.5, bottom: 3.4 }],           // right trigger (the left mouse button)
+      ['Block', 2, { right: 3.6, bottom: 3.6 }],            // left trigger (the right mouse button)
+      ['Cast', 67, { right: 0.5, bottom: 4.7 }],            // right shoulder (C)
+      ['Auto', 81, { right: 3.0, bottom: 4.9 }],            // Auto Move (Q; the menus' previous tab)
+      ['Pause', 27, { left: 0.5, top: 0.4 }, true],         // start (Escape)
+      ['Wait', 84, { left: 2.1, top: 0.4 }, true],          // back (T)
+      ['Sneak', 17, { right: 2.1, top: 0.4 }, true],        // left stick press (Control)
+      ['View', 82, { right: 0.5, top: 0.4 }, true],         // right stick press (R: Toggle POV)
+      ['1', 49, { left: 3.7, top: 0.4 }, true],             // the d-pad: quick keys 1, 3, 5, 7 (up, right, down, left)
+      ['3', 51, { left: 5.3, top: 0.4 }, true],
+      ['5', 53, { left: 6.9, top: 0.4 }, true],
+      ['7', 55, { left: 8.5, top: 0.4 }, true],
+    ];
+    const inset = { left: 'env(safe-area-inset-left)', right: 'env(safe-area-inset-right)',
+                    top: 'env(safe-area-inset-top)', bottom: 'env(safe-area-inset-bottom)' };
+    for (const [label, vk, at, small] of BUTTONS) {
+      const b = document.createElement('div');
+      b.className = small ? 'b s' : 'b';
+      b.textContent = label;
+      for (const side in at) b.style[side] = `calc(var(--u) * ${at[side]} + ${inset[side]})`;
+      const held = new Set();
+      const up = (e) => {
+        if (!held.delete(e.pointerId)) return;
+        if (!held.size) { b.classList.remove('on'); key(vk, false); }
+      };
+      b.addEventListener('pointerdown', (e) => {
+        e.preventDefault(); e.stopPropagation();
+        capture(b, e);
+        if (!held.size) { b.classList.add('on'); key(vk, true); }
+        held.add(e.pointerId);
+        if (navigator.vibrate) navigator.vibrate(8);
+      });
+      b.addEventListener('pointerup', up);
+      b.addEventListener('pointercancel', up);
+      touch.appendChild(b);
+    }
+
+    // The left stick: centred where the thumb lands, full at R from it.
+    const base = touch.querySelector('.base'), knob = touch.querySelector('.knob');
+    let moveId = null, cx = 0, cy = 0;
+    const R = () => Math.min(innerWidth, innerHeight) * 0.12;
+    const moveZone = touch.querySelector('.move');
+    const moveReset = () => { moveId = null; base.style.display = knob.style.display = 'none'; stick(0, 0, 0); };
+    moveZone.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      if (moveId !== null) return;
+      moveId = e.pointerId; capture(moveZone, e);
+      cx = e.clientX; cy = e.clientY;
+      for (const el of [base, knob]) { el.style.left = cx + 'px'; el.style.top = cy + 'px'; el.style.display = 'block'; }
+    });
+    moveZone.addEventListener('pointermove', (e) => {
+      if (e.pointerId !== moveId) return;
+      let dx = e.clientX - cx, dy = e.clientY - cy;
+      const r = R(), d = Math.hypot(dx, dy);
+      if (d > r) { dx *= r / d; dy *= r / d; }
+      knob.style.left = cx + dx + 'px'; knob.style.top = cy + dy + 'px';
+      stick(0, dx / r, -dy / r);
+    });
+    const moveEnd = (e) => { if (e.pointerId === moveId) moveReset(); };
+    moveZone.addEventListener('pointerup', moveEnd);
+    moveZone.addEventListener('pointercancel', moveEnd);
+
+    // Looking around: a drag on the right part, fed as mouse movement (a thumb moves less than a mouse: scaled up).
+    const LOOK_SCALE = 2.0;
+    const lookZone = touch.querySelector('.look');
+    const looks = new Map();
+    lookZone.addEventListener('pointerdown', (e) => {
+      e.preventDefault(); capture(lookZone, e);
+      looks.set(e.pointerId, [e.clientX, e.clientY]);
+    });
+    lookZone.addEventListener('pointermove', (e) => {
+      const last = looks.get(e.pointerId);
+      if (!last) return;
+      if (ready()) {
+        _rex_web_mouse((e.clientX - last[0]) * LOOK_SCALE, (e.clientY - last[1]) * LOOK_SCALE);
+      }
+      looks.set(e.pointerId, [e.clientX, e.clientY]);
+    });
+    const lookEnd = (e) => looks.delete(e.pointerId);
+    lookZone.addEventListener('pointerup', lookEnd);
+    lookZone.addEventListener('pointercancel', lookEnd);
+
+    let wentFull = false;
+    const show = () => {
+      if (document.body.classList.contains('touch')) return;
+      document.body.classList.add('touch');
+      // A phone plays full screen and sideways where the browser lets the page ask (Android; not the iPhone's Safari).
+      if (!wentFull && document.documentElement.requestFullscreen) {
+        wentFull = true;
+        document.documentElement.requestFullscreen({ navigationUI: 'hide' })
+          .then(() => screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape'))
+          .catch(() => {});
+      }
+      if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+    };
+    const hide = () => {
+      if (!document.body.classList.contains('touch')) return;
+      document.body.classList.remove('touch');
+      moveReset(); looks.clear(); key(-1, false);
+    };
+    addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'touch' || e.pointerType === 'pen') show();
+      else if (e.pointerType === 'mouse') hide();
+    }, true);
+    if (matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches) {
+      document.body.classList.add('touch');
+    }
+    // Everything let go when the page is left (a call, the app switcher).
+    document.addEventListener('visibilitychange', () => { if (document.hidden) { moveReset(); looks.clear(); } });
+    window.reoblivionTouch = { show, hide };  // for tests
+  })();
+</script>
+{{{ SCRIPT }}}
+</body>
+</html>
