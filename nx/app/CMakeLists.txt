@@ -105,7 +105,7 @@ if(REXGLUE_PLATFORM_SWITCH)
     rexglue_switch_add_nro(oblivion
         NAME "NXOblivion"
         AUTHOR "nxoblivion, after reNut (masterspike52) and katamari-nx (ChanseyIsTheBest)"
-        VERSION "0.1.22")
+        VERSION "0.1.23")
 endif()
 
 # reOblivion web (2026-11-17, docs/web-port.md): oblivion.html/.js/.wasm for the browser. main() runs on a worker

@@ -271,7 +271,11 @@ cp -r $S/licenses $KIT/licenses/devkitpro 2>/dev/null || true
 # ---- 6. kit.json ----
 LIBS="$SDK_LIBS libplume.a librenut_zstd.a librenut_smolv.a librenut_xxhash.a libdeko3d.a libnx.a libzstd.a libz.a
 libstdc++.a libm.a libgcc.a libc.a libsysbase.a"
-python -I - "$KIT/kit.json" "$VERSION" app/assets "$NSRC" "$COMMON $(inc_flags kit_root) -I{gen}" "$(echo $LIBS)" \
+# NXOblivion 0.1.23: the player's paths stay out of the NRO. Without the maps, __FILE__ in the game code and in the kit's
+# headers wrote the installer's folder (the player's Windows user folder) into the program; clang matches the maps
+# whatever the slashes.
+PATH_MAPS='-ffile-prefix-map={work}=work -ffile-prefix-map={kit}=kit'
+python -I - "$KIT/kit.json" "$VERSION" app/assets "$NSRC" "$COMMON $(inc_flags kit_root) -I{gen} $PATH_MAPS" "$(echo $LIBS)" \
   "$(cat $STAGE/objects.txt | tr '\n' ' ')" <<'PYEOF'
 import sys, os, json, hashlib, shlex
 out, version, assets, nsrc, cflags, libs, objs = sys.argv[1:8]
@@ -346,6 +350,39 @@ dotnet publish ../ports/switch/installer/OblivionInstaller/OblivionInstaller.csp
 cp $STAGE/publish/OblivionNX-Installer.exe "$DIST/"
 cp installer/README.txt "$DIST/README.txt"
 du -sh "$DIST" $KIT/* | sed 's/^/  /'
+
+# ---- 7b. This PC's user folder out of the kit (NXOblivion 0.1.23). The tools built here (rexglue.exe, rexruntime.dll,
+# zstd.exe) hold their sources' full paths (__FILE__ in log lines); the user folder's name becomes "nxbuild" (as long as
+# the name: padded with x or cut), so no offset in the files moves. Fails if any trace is left. ----
+python -I - "$DIST" "$(cygpath -m "${USERPROFILE:-$HOME}")" <<'PYEOF'
+import os, sys
+dist, home = sys.argv[1], sys.argv[2].rstrip('/')
+name = home.rsplit('/', 1)[1]
+new_name = ('nxbuild' + 'x' * len(name))[:len(name)]
+pairs = []
+for sep in ('/', '\\', '\\\\'):
+    old = home.replace('/', sep)
+    pairs.append((old.encode(), old[:-len(name)].encode() + new_name.encode()))
+changed = 0
+for root, _, files in os.walk(dist):
+    if os.path.relpath(root, dist).split(os.sep)[0] == 'work':
+        continue
+    for f in files:
+        p = os.path.join(root, f)
+        d = open(p, 'rb').read()
+        e = d
+        for old, new in pairs:
+            e = e.replace(old, new)
+        if e != d:
+            open(p, 'wb').write(e)
+            changed += 1
+            print(f"  build paths renamed in {os.path.relpath(p, dist)}")
+        low = e.lower()
+        for old, _ in pairs:
+            if old.lower() in low:
+                sys.exit(f"{p} still holds {old.decode()}")
+print(f"user folder: {changed} file(s) changed, none left")
+PYEOF
 
 # ---- 8. Into its place: only a complete installer replaces the previous one (whose work folder, the builds and the
 # translated shaders of earlier runs, is kept) ----
