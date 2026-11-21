@@ -35,6 +35,19 @@ To build from source (developers): Windows 11, Git, CMake 3.25 or newer, Ninja, 
 MSVC environment), Python 3, the .NET 10 SDK, and Docker Desktop with the `devkitpro/devkita64` image (devkitA64,
 libnx, deko3d). `nx/tools/build_kit.sh` describes the steps.
 
+## Getting the game files
+
+**We do not condone piracy.** Dump the game from a disc you own. Please don't ask for game files or share them in
+issues, and don't post links to them.
+
+A normal PC DVD drive can't read the game part of an Xbox 360 disc. Two ways that work:
+
+- **A modded Xbox 360 (RGH/JTAG):** copy the disc's files to the console's hard drive with Aurora or XeXMenu, then
+  copy that folder to your PC over FTP. Give the installer that folder (with `default.xex`, `Oblivion.ini`, `data`,
+  `Data2`).
+- **A PC DVD drive with Kreon firmware:** read the disc into an `.iso` with Xbox Backup Creator, then give the
+  installer the `.iso`.
+
 ## Install (Switch)
 
 1. Download `NXOblivion-<version>-installer.zip` from [Releases](https://github.com/nxoblivion/NXOblivion/releases)
